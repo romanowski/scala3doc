@@ -1,3 +1,6 @@
+// re-expose subproject settings
+val `example-project` = ExampleProject.`example-project`
+
 val dottyVersion = "0.26.0-RC1"
 val dokkaVersion = "1.4.0-rc"
 val kotlinxVersion = "0.7.1" // upgrade when upgrading dokka
@@ -28,12 +31,12 @@ lazy val root = project
   .in(file("."))
   .settings(
     name := "scala3doc",
-    version := "0.1.1",
+    version := "0.1.1-SNAPSHOT",
     scalaVersion := dottyVersion
   )
 
 
-val dokkaJavaApiJar = file("libs") / "dokkaJavaApi-0.1.1.jar"
+val dokkaJavaApiJar = file("libs") / "dokkaJavaApi-0.1.1-SNAPSHOT.jar"
 val gradleRootDir = file("dokkaJavaApi")
 
 val buildDokkaApi = taskKey[File]("Compile dokka wrapper and put jar in lib")
@@ -42,7 +45,7 @@ buildDokkaApi := {
   sys.process.Process(Seq("./gradlew", "build"), gradleRootDir).!
 
   if (dokkaJavaApiJar.exists()) IO.delete(dokkaJavaApiJar)
-  IO.move(gradleRootDir / "build" / "libs" / "dokkaJavaApi-0.1.1.jar", dokkaJavaApiJar)
+  IO.move(gradleRootDir / "build" / "libs" / "dokkaJavaApi-0.1.1-SNAPSHOT.jar", dokkaJavaApiJar)
   streams.value.log.success(s"Dokka API copied to $dokkaJavaApiJar")
   dokkaJavaApiJar
 }
@@ -66,6 +69,10 @@ Test / parallelExecution := false
 
 scalacOptions in Compile += "-language:implicitConversions"
 
+Compile / mainClass := Some("dotty.dokka.Main")
+
+// hack, we cannot build documentation so we need this to publish locally
+publishArtifact in (Compile, packageDoc) := false
 
 // TODO #35 proper sbt integration
 val generateDottyLibDocumentation = taskKey[Unit]("Generate documentation for dotty lib")
