@@ -66,6 +66,52 @@ You can also find the result of building the same sites for latest `master` at:
 + https://scala3doc.s3.eu-central-1.amazonaws.com/pr-master/self/main/index.html
 + https://scala3doc.s3.eu-central-1.amazonaws.com/pr-master/stdLib/main/index.html
 
+### Testing
+
+Most tests rely on comparing signatures (of classes, methods, objects etc.) extracted from the generated documentation
+to signatures found in source files.
+By default it's expected that all signatures from the source files will be present in the documentation
+but not vice versa (because the documentation can contain also inherited signatures).
+To validate that a signature present in the source does not exist in the documentation
+(because they should be hidden from users) add `//unexpected` comment after the signature in the same line.
+This will cause an error if a signature with the same name appears in the documentation (even if some elements of the signature are slightly different - to avoid accidentally passing tests).
+If the signature in the documentation is expected to slightly differ from how it's defined in the source code
+you can add a `//expected: ` comment (also in the same line and followed by a space) followed by the expected signature.
+Alternatively you can use `/*<-*/` and `/*->*/` as opening and closing parentheses for parts of a signature present in the source but undesired in the documentation (at least at the current stage of development), e.g.
+
+```
+def foo/*<-*/()/*->*/: Int
+```
+
+will make the expected signature be
+
+```
+def foo: Int
+```
+
+instead of
+
+```
+def foo(): Int
+```
+
+
+Because of the way how signatures in source are parsed, they're expected to span until the end of a line (including comments except those special ones mentioned above, which change the behaviour of tests) so if a definition contains an implementation, it should be placed in a separate line, e.g.
+
+```
+def foo: Int
+   = 1
+
+class Bar
+{
+   //...
+}
+```
+
+Otherwise the implementation would be treated as a part of the signature.
+
+`MultipleFileTest` and `SingleFileTest` test classes allow you to specify which kinds of signatures from a source file (depending on the keyword used to declare them like `def`, `class`, `object` etc.) are checked and which are ignored in a test.
+
 ## Roadmap
 
 1. Publish an initial version of the tool together with an SBT plugin

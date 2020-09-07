@@ -227,6 +227,14 @@ class ScalaSignatureProvider(contentConverter: CommentsToContentConverter, logge
                 .map(_.filter(_.prefix).map(_.getName))
                 .map(modifiers => modifiers.toSeq.toSignatureString())
                 .getOrElse("")
+              
+            val visibility = t.getVisibility.defaultValue match {
+                case ScalaVisibility.NoModifier => ""
+                case ScalaVisibility.Protected(None) => "protected"
+                case ScalaVisibility.Protected(Some(scope)) => s"protected[${scope.scope}]"
+                case ScalaVisibility.Private(None) => "private"
+                case ScalaVisibility.Private(Some(scope)) => s"private[${scope.scope}]"
+            }
             
             val suffixes = additionalModifiers
                 .map(_.filter(!_.prefix).map(_.getName))
@@ -237,7 +245,7 @@ class ScalaSignatureProvider(contentConverter: CommentsToContentConverter, logge
             builder.addText(
                 Seq(
                     prefixes.trim,
-                    t.getVisibility.defaultValue.getName, 
+                    visibility,
                     t.getModifier.defaultValue.getName,
                     suffixes.trim,
                     kind
