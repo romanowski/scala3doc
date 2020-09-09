@@ -28,6 +28,7 @@ private-*
 repo
 
 .metals
+metals.sbt
 .bloop
 
 # custom things

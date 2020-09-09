@@ -248,8 +248,8 @@ class ScalaSignatureProvider(contentConverter: CommentsToContentConverter, logge
             case tc: TypeConstructor =>
                 tc.getProjections.asScala.foreach {
                     case text: UnresolvedBound => builder.addText(text.getName)
-                    case link: OtherParameter => 
-                        builder.addLink(link.getName, link.getDeclarationDRI)
+                    case link: TypeParameter => 
+                        builder.addLink(link.getName, link.getDri)
                     case other =>
                         builder.addText(s"TODO($other)")
                 }
