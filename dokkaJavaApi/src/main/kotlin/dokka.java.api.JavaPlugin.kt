@@ -13,7 +13,7 @@ import org.jetbrains.dokka.pages.ContentKind
 import org.jetbrains.dokka.pages.Kind
 import org.jetbrains.dokka.pages.Style
 import org.jetbrains.dokka.plugability.DokkaContext
-import org.jetbrains.dokka.plugability.DokkaPlugin
+import org.jetbrains.dokka.plugability.DokkaJavaPlugin
 import org.jetbrains.dokka.transformers.documentation.DocumentableToPageTranslator
 import org.jetbrains.dokka.transformers.documentation.DocumentableTransformer
 import org.jetbrains.dokka.transformers.pages.PageTransformer
@@ -26,17 +26,8 @@ data class SourceSetWrapper(val sourceSet: DokkaConfiguration.DokkaSourceSet) {
     fun <T> asMap(value: T): Map<DokkaConfiguration.DokkaSourceSet, T> = mapOf(sourceSet to value)
 }
 
-abstract class JavaDokkaPlugin : DokkaPlugin() {
+abstract class JavaDokkaPlugin : DokkaJavaPlugin() {
     private val dokkaBase by lazy { plugin<DokkaBase>() }
-
-    val provideDottyDocs by extending {
-        CoreExtensions.sourceToDocumentableTranslator providing { _ ->
-            object : SourceToDocumentableTranslator {
-                override fun invoke(sourceSet: DokkaConfiguration.DokkaSourceSet, context: DokkaContext): DModule =
-                    createSourceToDocumentableTranslator(context, SourceSetWrapper(sourceSet))
-            }
-        }  override dokkaBase.psiToDocumentableTranslator
-    }
 
     // Just turn off another translator since multiple overrides does not work
     val disableOtherTranslator by extending {
@@ -100,7 +91,7 @@ abstract class JavaDokkaPlugin : DokkaPlugin() {
     }
 
 
-    abstract fun createSourceToDocumentableTranslator(cxt: DokkaContext, sourceSet: SourceSetWrapper): DModule
+    // abstract fun createSourceToDocumentableTranslator(cxt: DokkaContext, sourceSet: SourceSetWrapper): DModule
     abstract fun createSignatureProvider(ctcc: CommentsToContentConverter, logger: DokkaLogger): SignatureProvider
     abstract fun createResourceInstaller(ctx: DokkaContext) : PageTransformer
     abstract fun createEmbeddedResourceAppender(ctx: DokkaContext) : PageTransformer

@@ -23,11 +23,12 @@ tasks.withType(KotlinCompile::class).all {
 repositories {
     jcenter()
     mavenCentral()
+    mavenLocal()
 }
 
 dependencies {
-    implementation("org.jetbrains.dokka:dokka-core:1.4.0")
-    implementation("org.jetbrains.dokka:dokka-base:1.4.0")
+    implementation("org.jetbrains.dokka:dokka-core:1.4.0-SNAPSHOT")
+    implementation("org.jetbrains.dokka:dokka-base:1.4.0-SNAPSHOT")
 }
 
 apply {

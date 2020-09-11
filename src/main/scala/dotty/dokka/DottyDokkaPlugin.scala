@@ -4,6 +4,8 @@ import org.jetbrains.dokka.plugability._
 import org.jetbrains.dokka.transformers.sources._
 
 import org.jetbrains.dokka.DokkaConfiguration
+import org.jetbrains.dokka.CoreExtensions
+import org.jetbrains.dokka.DokkaConfiguration$DokkaSourceSet
 import org.jetbrains.dokka.model._
 import org.jetbrains.dokka.links._
 import org.jetbrains.dokka.model.doc._
@@ -27,22 +29,34 @@ import org.jetbrains.dokka.pages._
   * Most of the work of parsing Tasty is done by [](DokkaTastyInspector).
   */
 class DottyDokkaPlugin extends JavaDokkaPlugin:
-  override def createSourceToDocumentableTranslator(cxt: DokkaContext, sourceSet: SourceSetWrapper): DModule = cxt.getConfiguration match {
-    case dottyConfig: DottyDokkaConfig =>
-      val inspector = DokkaTastyInspector(sourceSet, new MarkdownParser(null, null, cxt.getLogger), dottyConfig)
-      inspector.inspect(dottyConfig.docConfiguration.args.classpath, dottyConfig.docConfiguration.tastyFiles)
-    
-      new DModule(
-        sourceSet.getSourceSet.getModuleDisplayName,
-        inspector.result().asJava,
-        Map().asJava,
-        null,
-        sourceSet.toSet,
-        PropertyContainer.Companion.empty()
-      )
-    case _ =>
-      ???
-  }
+
+  object TastySourceToDocumentableTranslator extends SourceToDocumentableTranslator:
+    override def invoke(rawSsourceSet: DokkaConfiguration$DokkaSourceSet, cxt: DokkaContext): DModule =
+      cxt.getConfiguration match {
+        case dottyConfig: DottyDokkaConfig =>
+          val sourceSet = new SourceSetWrapper(rawSsourceSet)
+          val inspector = DokkaTastyInspector(sourceSet, new MarkdownParser(null, null, cxt.getLogger), dottyConfig)
+          inspector.inspect(dottyConfig.docConfiguration.args.classpath, dottyConfig.docConfiguration.tastyFiles)
+        
+          new DModule(
+            sourceSet.getSourceSet.getModuleDisplayName,
+            inspector.result().asJava,
+            Map().asJava,
+            null,
+            sourceSet.toSet,
+            PropertyContainer.Companion.empty()
+          )
+        case _ =>
+          ???
+      }
+
+  private lazy val basePlugin = plugin(classOf[org.jetbrains.dokka.base.DokkaBase])
+
+  val provideDottyDocs = extend(
+    _.extensionPoint(CoreExtensions.INSTANCE.getSourceToDocumentableTranslator())
+      .fromInstance(TastySourceToDocumentableTranslator)
+      .overrideExisiting(basePlugin.getPsiToDocumentableTranslator())
+    )
 
   override def createSignatureProvider(ctcc: CommentsToContentConverter, logger: DokkaLogger) = new ScalaSignatureProvider(ctcc, logger) 
   override def createResourceInstaller(ctx: DokkaContext) = new ScalaResourceInstaller()
