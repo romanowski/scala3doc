@@ -4,7 +4,7 @@ val kotlinxVersion = "0.7.2" // upgrade when upgrading dokka
 val flexmarkVersion = "0.42.12"
 val jacksonVersion = "2.9.8"
 val scalaTagsVersion = "0.9.1"
-val dokkaSiteVersion = "0.1.7"
+val dokkaSiteVersion = "0.1.5-3-g0667d9d-SNAPSHOT"
 
 libraryDependencies ++= Seq(
   "org.jetbrains.dokka" % "dokka-base" % dokkaVersion,
@@ -17,6 +17,7 @@ libraryDependencies ++= Seq(
   "ch.epfl.lamp" %% "dotty-compiler" % dottyVersion,
   "ch.epfl.lamp" %% "dotty-library" % dottyVersion,
   "org.scala-sbt" % "io_2.13" % "1.3.4",
+  "org.scalameta" %% "mdoc" % "2.2.9",
 
   "com.vladsch.flexmark" % "flexmark-all" % flexmarkVersion,
   "com.lihaoyi" % "scalatags_2.13" % scalaTagsVersion,

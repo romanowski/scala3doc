@@ -17,6 +17,8 @@ import java.nio.file.Files
 import org.kohsuke.args4j.{CmdLineParser, Option => COption}
 import org.kohsuke.args4j.spi.StringArrayOptionHandler
 
+import com.virtuslab.dokka.site.PreProcessor
+
 class RawArgs:
     @COption(name="--tastyRoots", required = true, aliases = Array("-t"), usage="Roots where tools should look for tasty files")
     private var tastyRoots: String = null
@@ -135,6 +137,8 @@ object Main:
 
         if (parsedArgs.output.exists()) IO.delete(parsedArgs.output)
 
+        PreProcessor.Registry.INSTANCE.register(MDocProcessor(""))
+        
         // TODO #20 pass options, classpath etc.
         new DokkaGenerator(new DottyDokkaConfig(config), DokkaConsoleLogger.INSTANCE).generate()
 
