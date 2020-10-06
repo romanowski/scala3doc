@@ -57,6 +57,31 @@ class ScalaPageContentBuilder(
         ).buildContent()
     }
 
+
+    def cocumentableElement(documenable: Documentable): DocumentableElement = 
+            DocumentableElement("public", 
+                "def", 
+                documenable.getName, 
+                ":String", 
+                asParams(documenable.getDri)
+            )
+
+        def documentableList(documenables: List[Documentable], name: Option[String]): ScalaPageContentBuilder = 
+            addChild(DocumentableList(name, documenables.map(cocumentableElement), asParams(mainDRI)))
+
+        type Self = ScalaPageContentBuilder#ScalaDocumentableContentBuilder
+
+        
+    def documentableTab(name: String, children: Seq[Seq[()]]): Self =
+        val children = mkChildren(this.copy(children = Nil)).children
+        if (children.isEmpty) this else
+                header(3, name, kind, styles = styles, extra = extra plus SimpleAttr.Companion.header(name))()
+                .group(styles = Set(ContentStyle.WithExtraAttributes), extra = extra plus SimpleAttr.Companion.header(name)){ bdr =>
+                    bdr.addChildren(children)
+        }
+
+
+
     case class ScalaTableBuilder(
         val mainDRI: Set[DRI],
         val mainSourcesetData: Set[DokkaConfiguration$DokkaSourceSet],
@@ -440,6 +465,15 @@ class ScalaPageContentBuilder(
                 contentForDRIs(dri, sourceSets, kind, styles, extra, buildBlock),
                 sourceSets.toDisplay
             )
+        )
+
+        def asParams(dri: DRI): ContentNodeParams = asParams(Set(dri))
+
+        def asParams(dri: Set[DRI]): ContentNodeParams = ContentNodeParams(
+            new DCI(dri.asJava, mainKind),
+            mainSourcesetData.toDisplay,
+            mainStyles,
+            mainExtra
         )
 
         def divergentBlock[A, T <: Documentable, G <: List[(A, List[T])]](

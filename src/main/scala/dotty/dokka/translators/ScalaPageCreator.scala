@@ -247,10 +247,7 @@ class ScalaPageCreator(
         ) = {
             val (typeDefs, valDefs) = s.getProperties.asScala.toList.partition(_.get(PropertyExtension).kind == "type")
             val classes = s.getClasslikes.asScala.toList
-            val inherited = s match {
-                case c: DClass => List("Inherited" -> c.get(ClasslikeExtension).inheritedMethods)
-                case other => List.empty
-            }
+            
              
             b
                 .contentForComments(s)
@@ -261,16 +258,24 @@ class ScalaPageCreator(
                 )(
                     (bdr, elem) => bdr.header(3, elem)()
                 )
-                .divergentBlock(
-                    "Methods",
-                    List(
-                        "Class methods" -> s.getFunctions.asScala.toList, 
-                    ) ++ inherited,
-                    kind = ContentKind.Functions,
-                    omitSplitterOnSingletons = false
-                )(
-                    (builder, txt) => builder.header(3, txt)()
-                )
+                .documentableTab("Methods"){ builder =>
+                    val base = builder.documentableList(s.getFunctions.asScala.toList, Some("Class methods"))
+                    val inherited = s match
+                        case c: DClass => 
+                            base.documentableList(c.get(ClasslikeExtension).inheritedMethods, Some("Inherited"))
+                        case other => base
+    
+                }
+                // .divergentBlock(
+                //     ,
+                //     List(
+                //         "Class methods" -> , 
+                //     ) ++ inherited,
+                //     kind = ContentKind.Functions,
+                //     omitSplitterOnSingletons = false
+                // )(
+                //     (builder, txt) => builder.header(3, txt)()
+                // )
                 .groupingBlock(
                     "Value members",
                     List("" -> valDefs),
