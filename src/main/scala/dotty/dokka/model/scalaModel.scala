@@ -75,4 +75,57 @@ object ScalaTagWrapper {
     descTag: DocTag
   ) extends NamedTagWrapper(descTag, name, null)
 }
+
 case class ImplicitConversion(conversion: Documentable, from: DRI, to: DRI)
+
+case class ContentNodeParams(
+  val dci: DCI, 
+  val sourceSets: java.util.Set[DisplaySourceSet], 
+  val style: Set[Style],
+  val extra: PropertyContainer[ContentNode] = PropertyContainer.Companion.empty
+):
+  def dri = dci.getDri.asScala.head
+
+abstract class ScalaContentNode(params: ContentNodeParams) extends ContentNode:
+  def newInstance(params: ContentNodeParams): ScalaContentNode
+
+  override def getDci = params.dci
+  override def getSourceSets = params.sourceSets
+  override def getStyle = params.style.asJava
+  override def hasAnyContent = true
+  def withSourceSets(sourceSets: JSet[DisplaySourceSet]) = 
+    newInstance(params.copy(sourceSets = sourceSets))
+  override def getChildren: JList[ContentNode] = Nil.asJava
+  override def getExtra = params.extra
+  override def withNewExtras(p: PropertyContainer[ContentNode]) = newInstance(params.copy(extra = p))
+   
+case class DocumentableElement(
+  modifiers: Seq[String | (String, DRI)],
+  name: String,
+  signature: Seq[String | (String, DRI)],
+  brief: Seq[ContentNode],
+  attributes: Map[String, String],
+  params: ContentNodeParams
+) extends ScalaContentNode(params):
+  override def newInstance(params: ContentNodeParams) = copy(params = params)
+
+case class DocumentableElementGroup(
+  header: Seq[String | (String, DRI)],
+  elements: Seq[DocumentableElement],
+  params: ContentNodeParams
+) extends ScalaContentNode(params):
+  override def newInstance(params: ContentNodeParams) = copy(params = params)
+  override def hasAnyContent = elements.nonEmpty
+  override def getChildren: JList[ContentNode] = elements.asJava
+
+case class DocumentableList(
+  groupName: Seq[String | (String, DRI)],
+  elements: Seq[DocumentableElement | DocumentableElementGroup], 
+  params: ContentNodeParams
+) extends ScalaContentNode(params):
+  override def newInstance(params: ContentNodeParams) = copy(params = params)
+  override def hasAnyContent = elements.nonEmpty
+  override def getChildren: JList[ContentNode] = elements.asJava
+
+case class DocumentableFilter(params: ContentNodeParams) extends ScalaContentNode(params):
+  override def newInstance(params: ContentNodeParams) = copy(params = params)

@@ -9,7 +9,8 @@ import org.jetbrains.dokka.links.DRI
 import org.jetbrains.dokka.model.properties._
 
 class ImplicitMembersExtensionTransformer(ctx: DokkaContext) extends DocumentableTransformer:
-    override def invoke(original: DModule, context: DokkaContext): DModule = propagateImplicitConversionsAndExtensionMethods(original, classlikeMap(original))
+    override def invoke(original: DModule, context: DokkaContext): DModule = 
+        propagateImplicitConversionsAndExtensionMethods(original, classlikeMap(original))
 
 
     private def classlikeMap(m: DModule): Map[DRI, DClass] = {

@@ -140,6 +140,7 @@ class ScalaPageCreator(
                     .contentForDescription(c)
                 }
             }
+            .documentableFilter()
             .group(styles = Set(ContentStyle.TabbedContent)) { b => b
                 .contentForScope(c)
                 .contentForEnum(c)
@@ -342,31 +343,7 @@ class ScalaPageCreator(
             }
         }
 
-        def buildImplicitConversionInfo(by: Documentable) = 
-            b.table(kind = ContentKind.BriefComment, styles = Set(TableStyle.DescriptionList)){ tbdr => tbdr
-                .cell() { c => c
-                    .text("Implicitly: ")
-                }
-                .cell() { c => c
-                    .text("This member is added by an implicit conversion performed by ")
-                    .driLink(by.getName, by.getDri)
-                }
-            }
-
-        def buildInheritedExtensionInfo(by: Documentable) = 
-            b.table(kind = ContentKind.BriefComment, styles = Set(TableStyle.DescriptionList)){ tbdr => tbdr
-                .cell() { c => c
-                    .text("Implicitly: ")
-                }
-                .cell() { c => c
-                    .text("This member is added by an extension defined in ")
-                    .driLink(by.getName, by.getDri)
-                }
-            }
-
-        def contentForScope(
-            s: Documentable & WithScope
-        ) = {
+        def contentForScope(s: Documentable & WithScope) = 
             val (typeDefs, valDefs) = s.getProperties.asScala.toList.partition(_.get(PropertyExtension).kind == "type")
             val classes = s.getClasslikes.asScala.toList
             val inheritedDefinitions = s match {
@@ -393,170 +370,72 @@ class ScalaPageCreator(
             val implicitInheritedMethods = implicitMembers.fold(Map.empty)(_.inheritedMethods)
             val implicitFields = implicitMembers.fold(Map.empty)(_.properties)
             val implicitInheritedFields = implicitMembers.fold(Map.empty)(_.inheritedProperties)
-             
-            val withoutExtensions = b
+            
+            b
                 .contentForComments(s)
-                .divergentBlock(
-                    "Type members",
-                    List(
-                        "Types" -> typeDefs, 
-                        "Classlikes" -> classes, 
-                        "Inherited types" -> inheritedDefinitions.fold(List.empty)(_.types),
-                        "Inherited classlikes" -> inheritedDefinitions.fold(List.empty)(_.classlikes),
-                    ),
-                    kind = ContentKind.Classlikes,
-                    omitSplitterOnSingletons = false
-                )(
-                    (bdr, elem) => bdr.header(3, elem)()
+                .documentableTab("Type members")(
+                    DocumentableGroup(Some("Types"), typeDefs),
+                    DocumentableGroup(Some("Classlikes"), classes),
+                    DocumentableGroup(Some("Inherited types"), inheritedDefinitions.fold(List.empty)(_.types)),
+                    DocumentableGroup(Some("Inherited classlikes"), inheritedDefinitions.fold(List.empty)(_.classlikes))
                 )
-                .groupingBlock(
-                    "Methods",
-                    List(
-                        "Defined methods" -> (s.getFunctions.asScala ++ implicitMethods.keys ++ inheritedExtensions.keys).toList,
-                        "Inherited methods" -> (inheritedDefinitions.fold(List.empty)(_.methods) ++ implicitInheritedMethods.keys.toList)
+                .documentableTab("Methods")(
+                    DocumentableGroup(
+                        Some("Defined methods"), 
+                        s.getFunctions.asScala.toList
                     ),
-                    kind = ContentKind.Functions,
-                    omitSplitterOnSingletons = false
-                )(
-                    (builder, txt) => builder.header(3, txt)()
-                ){ (bdr, elem) => bdr
-                    .driLink(elem.getName, elem.getDri)
-                    .sourceSetDependentHint(Set(elem.getDri), elem.getSourceSets.asScala.toSet, kind = ContentKind.SourceSetDependentHint) { sbdr => 
-                        val withBrief = sbdr.contentForBrief(elem)
-                        (if implicitMethods.contains(elem) then withBrief.buildImplicitConversionInfo(implicitMethods(elem))
-                         else if implicitInheritedMethods.contains(elem) then withBrief.buildImplicitConversionInfo(implicitInheritedMethods(elem))
-                         else if inheritedExtensions.contains(elem) then withBrief.buildInheritedExtensionInfo(inheritedExtensions(elem))
-                         else withBrief)
-                        .signature(elem)
-                    }
-                }
-                .groupingBlock(
-                    "Value members",
-                    List(
-                        "Defined value members" -> (valDefs ++ implicitFields.keys.toList),
-                        "Inherited value members" -> (inheritedDefinitions.fold(List.empty)(_.fields) ++ implicitInheritedFields.keys.toList)
+                    DocumentableGroup(
+                        Some("Inherited methods"), 
+                        inheritedDefinitions.fold(List.empty)(_.methods) 
                     ),
-                    kind = ContentKind.Properties,
-                    omitSplitterOnSingletons = false,
-                    sourceSets = s.getSourceSets.asScala.toSet
-                )(
-                    (bdr, elem) => bdr.header(3, elem)()
-                ){ (bdr, elem) => bdr
-                    .driLink(elem.getName, elem.getDri)
-                    .sourceSetDependentHint(Set(elem.getDri), elem.getSourceSets.asScala.toSet, kind = ContentKind.SourceSetDependentHint) { sbdr => 
-                        val withBrief = sbdr.contentForBrief(elem)
-                        (if implicitFields.contains(elem) then withBrief.buildImplicitConversionInfo(implicitFields(elem))
-                         else if implicitInheritedFields.contains(elem) then withBrief.buildImplicitConversionInfo(implicitInheritedFields(elem))
-                         else withBrief)
-                        .signature(elem)
-                    }
-                }
-                .groupingBlock(
-                    "Given",
-                    List(
-                        "Defined given" -> givens.getOrElse(List.empty),
-                        "Inherited given" -> inheritedDefinitions.fold(List.empty)(_.givens)
-                    ),
-                    kind = ContentKind.Functions,
-                    omitSplitterOnSingletons = false
-                )(
-                    (bdr, elem) => bdr.header(3, elem)()
-                ){ (bdr, elem) => bdr
-                    .driLink(elem.getName, elem.getDri, kind = ContentKind.Main)
-                    .sourceSetDependentHint(
-                        dri = Set(elem.getDri), 
-                        sourceSets = elem.getSourceSets.asScala.toSet,
-                        kind = ContentKind.SourceSetDependentHint
-                    ){ srcsetbdr => srcsetbdr
-                        .contentForBrief(elem)
-                        .signature(elem)
-                    }
-                }
-                if(extensions.getOrElse(List.empty).isEmpty && inheritedDefinitions.fold(List.empty)(_.extensions).isEmpty) then withoutExtensions
-                else withoutExtensions
-                .header(2, "Extensions")()
-                .group(styles = Set(ContentStyle.WithExtraAttributes), extra = PropertyContainer.Companion.empty plus SimpleAttr.Companion.header("Extensions")){ gbdr => gbdr
-                    .group(){ gdbdr => gbdr
-                        .groupingBlock(
-                            "Defined extensions",
-                            extensions.getOrElse(List.empty).map(e => e.extendedSymbol -> e.extensions).sortBy(_._2.size),
-                            omitSplitterOnSingletons = true,
-                            kind = ContentKind.Extensions
-                        )( (bdr, receiver) => bdr 
-                            .group(){ grpbdr => grpbdr
-                                .header(4, "Extension group")()
-                                .signature(receiver)
-                            }
-                        ){ (bdr, elem) => bdr
-                            .driLink(elem.getName, elem.getDri, kind = ContentKind.Main)
-                            .sourceSetDependentHint(
-                                dri = Set(elem.getDri), 
-                                sourceSets = elem.getSourceSets.asScala.toSet, 
-                                kind = ContentKind.SourceSetDependentHint
-                            ){ srcsetbdr => srcsetbdr
-                                .contentForBrief(elem)
-                                .signature(elem)
-                            }
-                        }
-                        .groupingBlock(
-                            "Inherited extensions",
-                            inheritedDefinitions.fold(List.empty)(_.extensions).map(e => e.extendedSymbol -> e.extensions).sortBy(_._2.size),
-                            omitSplitterOnSingletons = true,
-                            kind = ContentKind.Extensions
-                        )( (bdr, receiver) => bdr 
-                            .group(){ grpbdr => grpbdr
-                                .header(4, "Extension group")()
-                                .signature(receiver)
-                            }
-                        ){ (bdr, elem) => bdr
-                            .driLink(elem.getName, elem.getDri, kind = ContentKind.Main)
-                            .sourceSetDependentHint(
-                                dri = Set(elem.getDri), 
-                                sourceSets = elem.getSourceSets.asScala.toSet, 
-                                kind = ContentKind.SourceSetDependentHint
-                            ){ srcsetbdr => srcsetbdr
-                                .contentForBrief(elem)
-                                .signature(elem)
-                            }
-                        }
-                    }
-                }
-        }
-
-        def contentForEnum(
-            c: DClass
-        ) = b.groupingBlock(
-            "Enum entries",
-            List(() -> Option(c.get(EnumExtension)).fold(List.empty)(_.enumEntries.sortBy(_.getName).toList)),
-            kind = ContentKind.Properties
-        )( (bdr, splitter) => bdr ){ (bdr, elem) => bdr
-            .driLink(elem.getName, elem.getDri, kind = ContentKind.Main)
-            .sourceSetDependentHint(
-                dri = Set(elem.getDri), 
-                sourceSets = elem.getSourceSets.asScala.toSet, 
-                kind = ContentKind.SourceSetDependentHint
-            ){ srcsetbdr => srcsetbdr
-                .contentForBrief(elem)
-                .signature(elem)
-            }
-        }
-
-        def contentForConstructors(
-                c: DClass
-            ) = b.groupingBlock(
-                "Constructors",
-                List("" -> c.getConstructors.asScala.toList),
-                kind = ContentKind.Constructors
-            )(
-                (bdr, group) => bdr
-            ){ (bdr, elem) => bdr
-                    .driLink(elem.getName, elem.getDri)
-                    .sourceSetDependentHint(Set(elem.getDri), elem.getSourceSets.asScala.toSet, kind = ContentKind.SourceSetDependentHint) { sbdr => sbdr
-                        .contentForBrief(elem)
-                        .signature(elem)
-                    }
-            }
+                    DocumentableGroup(
+                        Some("Implicitly Added Methods"), 
+                        implicitMethods.keys.toList ++ inheritedExtensions.keys.toList ++ implicitInheritedMethods.keys.toList
+                    )
+                )
+                .documentableTab("Value members")(
+                    DocumentableGroup(
+                        Some("Defined value members"), 
+                        (valDefs ++ implicitFields.keys.toList)
+                    ), 
+                    DocumentableGroup(
+                        Some("Inherited value members"), 
+                        (inheritedDefinitions.fold(List.empty)(_.fields) ++ implicitInheritedFields.keys.toList)
+                    )
+                )
+                .documentableTab("Givens")(
+                     DocumentableGroup(
+                        Some("Defined givens"), // TODO add extension groups!
+                        givens.getOrElse(List.empty)
+                    ), 
+                    DocumentableGroup(
+                        Some("Inherited givens"), 
+                        inheritedDefinitions.fold(List.empty)(_.givens)
+                    )
+                )
+                .documentableTab("Extensions")(
+                     DocumentableGroup(
+                        Some("Defined extensions"), // TODO add extension groups!
+                        extensions.getOrElse(List.empty).sortBy(_.extensions.size)
+                    ), 
+                    DocumentableGroup(
+                        Some("Inherited extensions"), 
+                        inheritedDefinitions.fold(List.empty)(_.extensions).sortBy(_.extensions.size),
+                    )
+                )
     
+
+        def contentForEnum(c: DClass) = 
+            b.documentableTab("Enum entries")(
+                DocumentableGroup(None, Option(c.get(EnumExtension)).fold(List.empty)(_.enumEntries.sortBy(_.getName).toList)), 
+            )
+        
+
+        def contentForConstructors(c: DClass) = 
+             b.documentableTab("Constructors")(
+                DocumentableGroup(None, c.getConstructors.asScala.toList)
+            )
+        
 
         def contentForTypesInfo(c: DClass) = {
             val inheritanceInfo = c.get(InheritanceInfo)
