@@ -6,14 +6,21 @@ class DocumentableList extends Component {
     this.render(this.props);
   }
 
-  filterLists = (inputValue) => (togglableRef) => {
-    return [...findRefs(".documentableList", togglableRef)].map((listRef) => {
-      const visibleChildren = this.filterElements(listRef, inputValue);
-      ifVisible(visibleChildren.length, listRef, "block");
-    });
+  filterLists = (inputValue, filters, togglableRef) => {
+    return [...findRefs(".documentableList", togglableRef)]
+      .map((listRef) => {
+        const visibleChildren = this.filterElements(
+          listRef,
+          inputValue,
+          filters
+        );
+        ifVisible(visibleChildren.length, listRef, "block");
+        return visibleChildren.length;
+      })
+      .some((visibleElements) => visibleElements > 0);
   };
 
-  filterElements = (listRef, inputValue) => {
+  filterElements = (listRef, inputValue, filters) => {
     return [...findRefs(".documentableElement", listRef)]
       .map((elementRef) => ({
         ref: elementRef,
@@ -21,18 +28,31 @@ class DocumentableList extends Component {
         description: getText(findRef(".documentableBrief", elementRef)),
       }))
       .filter(({ ref, ...data }) => {
-        const includes = this.includesInputValue(data, inputValue);
-        ifVisible(includes, ref, "table");
-        toggleVisibility(includes, ref);
-        return includes;
+        const isVisible = this.isAnyFilterSelected(ref, filters)
+          ? this.includesInputValue(data, inputValue)
+          : false;
+        ifVisible(isVisible, ref, "table");
+        toggleVisibility(isVisible, ref);
+        return isVisible;
       });
+  };
+
+  isAnyFilterSelected = ({ dataset }, filters) => {
+    if (Object.keys(dataset).length) {
+      return Object.keys(dataset)
+        .filter((key) => startsWith(key, "f"))
+        .some((key) => filters[key] && filters[key][dataset[key]]);
+    }
+    return true;
   };
 
   includesInputValue = ({ name, description }, inputValue) => {
     return name.includes(inputValue) || description.includes(inputValue);
   };
 
-  render({ value }) {
-    this.togglableRefs.map(this.filterLists(value));
+  render({ value, filters }) {
+    this.togglableRefs.map((toggableRef) => {
+      this.filterLists(value, filters, toggableRef);
+    });
   }
 }

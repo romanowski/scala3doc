@@ -17,19 +17,51 @@ class FilterBar extends Component {
     this.inputComp = new Input({ onInputChange: this.onInputChange });
     this.documentableList = new DocumentableList({
       value: this.state.value,
+      filters: this.state.filters,
     });
     this.filterGroupComp = new FilterGroup({
       groups: this.state.filters,
       onFilterToggle: this.onFilterToggle,
+      onGroupSelectChange: this.onGroupSelectChange,
       onFilterVisibilityChange: this.onFilterVisibilityChange,
     });
   }
 
   onInputChange = (value) => {
-    this.setState({ value, filters: this.generateGroups() }, () => {
-      this.documentableList.render({ value: this.state.value });
-      this.filterGroupComp.render({ groups: this.state.filters });
-    });
+    this.setState(
+      (prevState) => ({
+        value,
+        filters: this.generateGroups(prevState.filters),
+      }),
+      () => {
+        this.documentableList.render({
+          value: this.state.value,
+          filters: this.state.filters,
+        });
+        this.filterGroupComp.render({ groups: this.state.filters });
+      }
+    );
+  };
+
+  onGroupSelectChange = (key, isActive) => {
+    this.setState(
+      (prevState) => ({
+        filters: {
+          ...prevState.filters,
+          [key]: Object.keys(prevState.filters[key]).reduce(
+            (obj, key) => ((obj[key] = isActive), obj),
+            {}
+          ),
+        },
+      }),
+      () => {
+        this.documentableList.render({
+          value: this.state.value,
+          filters: this.state.filters,
+        });
+        this.filterGroupComp.render({ groups: this.state.filters });
+      }
+    );
   };
 
   onFilterVisibilityChange = () => {
@@ -48,38 +80,36 @@ class FilterBar extends Component {
         },
       }),
       () => {
-        this.documentableList.render({ value: this.state.value });
+        this.documentableList.render({
+          value: this.state.value,
+          filters: this.state.filters,
+        });
         this.filterGroupComp.render({ groups: this.state.filters });
       }
     );
   };
 
-  generateGroups() {
-    return {
-      ...defaultFilterGroup,
-      ...[...findRefs(".documentableElement")].reduce(
-        this.getGroupFromDataset,
-        {}
-      ),
-    };
+  generateGroups(initial = {}) {
+    return [...findRefs(".documentableElement")].reduce(
+      this.getGroupFromDataset,
+      initial
+    );
   }
 
   getGroupFromDataset(group, { dataset }) {
-    if (dataset.visibility === "true" || !dataset.visibility) {
-      Object.entries(dataset).map(([key, value]) => {
-        if (!startsWith(key, "f")) {
-          return;
-        }
-        if (!group[key]) {
-          group[key] = { [value]: true };
-        } else {
-          group[key] = {
-            ...group[key],
-            [value]: true,
-          };
-        }
-      });
-    }
+    Object.entries(dataset).map(([key, value]) => {
+      if (!startsWith(key, "f")) {
+        return;
+      }
+      if (!group[key]) {
+        group[key] = { [value]: true };
+      } else {
+        group[key] = {
+          ...group[key],
+          [value]: group[key][value] ?? true,
+        };
+      }
+    });
     return group;
   }
 

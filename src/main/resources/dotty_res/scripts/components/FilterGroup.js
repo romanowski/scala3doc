@@ -25,14 +25,23 @@ class FilterGroup extends Component {
   getFilterGroup(title, values) {
     return `
       <div class="filterGroup">
-        <span class="groupTitle">${title.substring(1)}</span>
+        <div class="groupTitle">
+          <span>${title.substring(1)}</span>
+          <div class="groupButtonsContainer">
+            <button class="selectAll" data-key="${title}">Select All</button>
+            <button class="deselectAll" data-key="${title}">Deselect All</button>
+          </div>
+        </div>
         <div class="filterList">
-          ${Object.entries(values).map(
-            ([key, isActive]) =>
-              `<button class="filterButtonItem ${this.isActive(
-                isActive
-              )}" data-key="${title}" data-value="${key}">${key}</button>`
-          )}
+          ${Object.entries(values)
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(
+              ([key, isActive]) =>
+                `<button class="filterButtonItem ${this.isActive(
+                  isActive
+                )}" data-key="${title}" data-value="${key}">${key}</button>`
+            )
+            .join(" ")}
         </div>
       </div>
     `;
@@ -46,10 +55,40 @@ class FilterGroup extends Component {
     this.props.onFilterToggle(key, value);
   };
 
+  onSelectAllClick = ({
+    currentTarget: {
+      dataset: { key },
+    },
+  }) => {
+    this.props.onGroupSelectChange(key, true);
+  };
+
+  onDeselectAllClick = ({
+    currentTarget: {
+      dataset: { key },
+    },
+  }) => {
+    this.props.onGroupSelectChange(key, false);
+  };
+
   attachFiltersClicks() {
     [
       ...findRefs("button.filterButtonItem", this.filterLowerContainerRef),
     ].map((buttonRef) => withEvent(buttonRef, "click", this.onFilterClick));
+  }
+
+  attachSelectingButtonsClicks() {
+    [
+      ...findRefs("button.selectAll", this.filterLowerContainerRef),
+    ].map((selectAllRef) =>
+      withEvent(selectAllRef, "click", this.onSelectAllClick)
+    );
+
+    [
+      ...findRefs("button.deselectAll", this.filterLowerContainerRef),
+    ].map((selectAllRef) =>
+      withEvent(selectAllRef, "click", this.onDeselectAllClick)
+    );
   }
 
   render({ groups }) {
@@ -60,5 +99,6 @@ class FilterGroup extends Component {
       )
     );
     this.attachFiltersClicks();
+    this.attachSelectingButtonsClicks();
   }
 }

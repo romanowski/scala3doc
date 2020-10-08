@@ -29,7 +29,7 @@ const startsWith = (str, character) => str.charAt(0) === character;
 
 const htmlToString = (html) => {
   if (Array.isArray(html)) {
-    return html.join("");
+    return html.join(" ");
   }
-  return html;
+  return String(html);
 };
