@@ -20,7 +20,24 @@ import dotty.dokka._
 
 object FilterAttributes:
   def attributesFor(documentable: Documentable): Map[String, String] = 
-    (visibity(documentable) ++ isAbstract(documentable) ++ origin(documentable)).filter(_._2.nonEmpty)
+    val base = visibity(documentable) ++ visibity(documentable) ++ origin(documentable) ++ keywords(documentable)
+    base.filter(_._2.nonEmpty)
+
+  private def keywords(documentable: Documentable): Map[String, String] =  documentable match 
+    case v: WithExtraProperties[_] with WithAbstraction =>
+      val k = AdditionalModifiers.Companion.asInstanceOf[org.jetbrains.dokka.model.properties.ExtraProperty.Key[_, AdditionalModifiers]]
+
+      val additionalKeywords = getFromExtra[AdditionalModifiers](v, k).toSeq.flatMap(extra =>
+        extra.getContent().defaultValue.asScala.collect { case e: ScalaOnlyModifiers => e.name }
+      )
+      val mods = v.getModifier.defaultValue match 
+        case v: ScalaModifier => Seq(v.name)
+        case _ => Nil
+
+      Map("keywords" -> (additionalKeywords ++ mods).filter(_.nonEmpty).mkString(","))  
+    case _ =>
+      Map.empty
+
 
   private def visibity(documentable: Documentable): Map[String, String] = documentable match
     case v: WithVisibility => 
@@ -30,16 +47,6 @@ object FilterAttributes:
       Map("visibility" -> name)
     case _ => 
       Map.empty
-  
-  private def isAbstract(documentable: Documentable): Map[String, String] = documentable match 
-    case m: WithAbstraction =>
-      val name = m.getModifier.defaultValue match 
-        case v: ScalaModifier => v.name
-        case _ => "unknown"
-      
-      Map("overridability" -> name)
-    case _ => 
-      Map.empty  
 
 
   private def origin(documentable: Documentable): Map[String, String] = 
@@ -48,3 +55,11 @@ object FilterAttributes:
       case OriginInfo.ImplicitlyAddedBy(name: String, _) => Map("implicitly" -> s"by $name")
       case OriginInfo.ExtensionFrom(name: String, _) => Map("extension" -> s"from $name")
     }
+
+  def defaultValues = Map(
+    "inherited" ->  "Not inherited",
+    "implicitly" -> "Explicit method",
+    "extension" -> "Standard member",
+    "keywords" -> "no keywords",
+    "visibility" -> "public",
+  )
