@@ -59,6 +59,7 @@
 }
 
 .filterButtonItem {
+  display: none;
   padding: 6px 16px;
   margin-bottom: 6px;
   margin-right: 6px;
@@ -83,6 +84,10 @@
   color: var(--code-bg);
   border-bottom-color: var(--link-fg);
   background-color: var(--active-tab-color);
+}
+
+.filterButtonItem.visible {
+  display: inline-block;
 }
 
 .groupTitle {

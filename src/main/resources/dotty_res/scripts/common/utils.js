@@ -2,7 +2,7 @@ const findRef = (searchBy, element = document) =>
   element.querySelector(searchBy);
 
 const findRefs = (searchBy, element = document) =>
-  element.querySelectorAll(searchBy);
+  element ? [...element.querySelectorAll(searchBy)] : [];
 
 const withEvent = (element, listener, callback) => {
   element && element.addEventListener(listener, callback);
@@ -17,19 +17,22 @@ const attachDOM = (element, html) => {
   }
 };
 
-const getText = (element) => (element ? element.textContent : "");
-
-const ifVisible = (condition, element, displayStyles) =>
-  (element.style.display = condition ? displayStyles : "none");
-
-const toggleVisibility = (condition, element) =>
-  (element.dataset.visibility = condition ? "true" : "false");
-
 const startsWith = (str, character) => str.charAt(0) === character;
 
 const htmlToString = (html) => {
   if (Array.isArray(html)) {
-    return html.join(" ");
+    return html.join("");
   }
-  return String(html);
+  return html;
 };
+
+const attachListeners = (elementsRefs, type, callback) =>
+  elementsRefs.map((elRef) => withEvent(elRef, type, callback));
+
+const getElementTextContent = (element) => (element ? element.textContent : "");
+
+const getElementDescription = (elementRef) =>
+  findRef(".documentableBrief", elementRef);
+
+const getElementNameRef = (elementRef) =>
+  findRef(".documentableName", elementRef);

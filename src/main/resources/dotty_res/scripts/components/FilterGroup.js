@@ -2,49 +2,16 @@ class FilterGroup extends Component {
   constructor(props) {
     super(props);
 
-    this.state = {
-      isVisible: false,
-    };
-
     this.filterToggleRef = findRef(".filterToggleButton");
     this.filterLowerContainerRef = findRef(".filterLowerContainer");
 
-    this.onClickFn = withEvent(
+    withEvent(
       this.filterToggleRef,
       "click",
       this.props.onFilterVisibilityChange
     );
 
     this.render(this.props);
-  }
-
-  isActive(isActive) {
-    return isActive ? "active" : "";
-  }
-
-  getFilterGroup(title, values) {
-    return `
-      <div class="filterGroup">
-        <div class="groupTitle">
-          <span>${title.substring(1)}</span>
-          <div class="groupButtonsContainer">
-            <button class="selectAll" data-key="${title}">Select All</button>
-            <button class="deselectAll" data-key="${title}">Deselect All</button>
-          </div>
-        </div>
-        <div class="filterList">
-          ${Object.entries(values)
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(
-              ([key, isActive]) =>
-                `<button class="filterButtonItem ${this.isActive(
-                  isActive
-                )}" data-key="${title}" data-value="${key}">${key}</button>`
-            )
-            .join(" ")}
-        </div>
-      </div>
-    `;
   }
 
   onFilterClick = ({
@@ -72,32 +39,73 @@ class FilterGroup extends Component {
   };
 
   attachFiltersClicks() {
-    [
-      ...findRefs("button.filterButtonItem", this.filterLowerContainerRef),
-    ].map((buttonRef) => withEvent(buttonRef, "click", this.onFilterClick));
+    const refs = findRefs(
+      "button.filterButtonItem",
+      this.filterLowerContainerRef
+    );
+    attachListeners(refs, "click", this.onFilterClick);
   }
 
   attachSelectingButtonsClicks() {
-    [
-      ...findRefs("button.selectAll", this.filterLowerContainerRef),
-    ].map((selectAllRef) =>
-      withEvent(selectAllRef, "click", this.onSelectAllClick)
+    const selectAllRefs = findRefs(
+      "button.selectAll",
+      this.filterLowerContainerRef
+    );
+    const deselectAllRefs = findRefs(
+      "button.deselectAll",
+      this.filterLowerContainerRef
     );
 
-    [
-      ...findRefs("button.deselectAll", this.filterLowerContainerRef),
-    ].map((selectAllRef) =>
-      withEvent(selectAllRef, "click", this.onDeselectAllClick)
-    );
+    attachListeners(selectAllRefs, "click", this.onSelectAllClick);
+    attachListeners(deselectAllRefs, "click", this.onDeselectAllClick);
   }
 
-  render({ groups }) {
+  isActive(isActive) {
+    return isActive ? "active" : "";
+  }
+
+  isVisible(visible) {
+    return visible ? "visible" : "";
+  }
+
+  getSortedValues(values) {
+    return Object.entries(values).sort((a, b) => a[0].localeCompare(b[0]));
+  }
+
+  getFilterGroup(title, values) {
+    return `
+      <div class="filterGroup">
+        <div class="groupTitle">
+          <span>${title.substring(1)}</span>
+          <div class="groupButtonsContainer">
+            <button class="selectAll" data-key="${title}">Select All</button>
+            <button class="deselectAll" data-key="${title}">Deselect All</button>
+          </div>
+        </div>
+        <div class="filterList">
+          ${this.getSortedValues(values)
+            .map(
+              ([key, data]) =>
+                `<button class="filterButtonItem ${this.isActive(
+                  data.selected
+                )} ${this.isVisible(
+                  data.visible
+                )}" data-key="${title}" data-value="${key}">${key}</button>`
+            )
+            .join(" ")}
+        </div>
+      </div>
+    `;
+  }
+
+  render({ filter }) {
     attachDOM(
       this.filterLowerContainerRef,
-      Object.entries(groups).map(([key, values]) =>
-        this.getFilterGroup(key, values)
-      )
+      Object.entries(filter.filters)
+        .filter(([key, values]) => Object.values(values).some((v) => v.visible))
+        .map(([key, values]) => this.getFilterGroup(key, values))
     );
+
     this.attachFiltersClicks();
     this.attachSelectingButtonsClicks();
   }

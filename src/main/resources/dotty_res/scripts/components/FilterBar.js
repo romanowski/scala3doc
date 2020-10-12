@@ -1,67 +1,41 @@
-const defaultFilterGroup = {
-  FOrdering: { Alphabetical: true },
-};
-
 class FilterBar extends Component {
   constructor(props) {
     super(props);
 
+    this.refs = {
+      elements: findRefs(".documentableElement"),
+      filterBar: findRef(".documentableFilter"),
+    };
+
     this.state = {
-      value: "",
-      filters: this.generateGroups(),
+      filter: new Filter("", {}, this.refs.elements, true),
       isVisible: false,
     };
 
-    this.filterBarRef = findRef(".documentableFilter");
-
     this.inputComp = new Input({ onInputChange: this.onInputChange });
-    this.documentableList = new DocumentableList({
-      value: this.state.value,
-      filters: this.state.filters,
+    this.listComp = new DocumentableList({
+      filter: this.state.filter,
     });
     this.filterGroupComp = new FilterGroup({
-      groups: this.state.filters,
+      filter: this.state.filter,
       onFilterToggle: this.onFilterToggle,
       onGroupSelectChange: this.onGroupSelectChange,
       onFilterVisibilityChange: this.onFilterVisibilityChange,
     });
+
+    this.render();
   }
 
   onInputChange = (value) => {
-    this.setState(
-      (prevState) => ({
-        value,
-        filters: this.generateGroups(prevState.filters),
-      }),
-      () => {
-        this.documentableList.render({
-          value: this.state.value,
-          filters: this.state.filters,
-        });
-        this.filterGroupComp.render({ groups: this.state.filters });
-      }
-    );
+    this.setState((prevState) => ({
+      filter: prevState.filter.onInputValueChange(value),
+    }));
   };
 
   onGroupSelectChange = (key, isActive) => {
-    this.setState(
-      (prevState) => ({
-        filters: {
-          ...prevState.filters,
-          [key]: Object.keys(prevState.filters[key]).reduce(
-            (obj, key) => ((obj[key] = isActive), obj),
-            {}
-          ),
-        },
-      }),
-      () => {
-        this.documentableList.render({
-          value: this.state.value,
-          filters: this.state.filters,
-        });
-        this.filterGroupComp.render({ groups: this.state.filters });
-      }
-    );
+    this.setState((prevState) => ({
+      filter: prevState.filter.onGroupSelectionChange(key, isActive),
+    }));
   };
 
   onFilterVisibilityChange = () => {
@@ -69,60 +43,22 @@ class FilterBar extends Component {
   };
 
   onFilterToggle = (key, value) => {
-    this.setState(
-      (prevState) => ({
-        filters: {
-          ...prevState.filters,
-          [key]: {
-            ...prevState.filters[key],
-            [value]: !prevState.filters[key][value],
-          },
-        },
-      }),
-      () => {
-        this.documentableList.render({
-          value: this.state.value,
-          filters: this.state.filters,
-        });
-        this.filterGroupComp.render({ groups: this.state.filters });
-      }
-    );
+    this.setState((prevState) => ({
+      filter: prevState.filter.onFilterToggle(key, value),
+    }));
   };
 
-  generateGroups(initial = {}) {
-    return [...findRefs(".documentableElement")].reduce(
-      this.getGroupFromDataset,
-      initial
-    );
-  }
-
-  getGroupFromDataset(group, { dataset }) {
-    Object.entries(dataset).map(([key, value]) => {
-      if (!startsWith(key, "f")) {
-        return;
-      }
-      if (!group[key]) {
-        group[key] = { [value]: true };
-      } else {
-        group[key] = {
-          ...group[key],
-          [value]: group[key][value] ?? true,
-        };
-      }
-    });
-    return group;
-  }
-
   render() {
-    const { isVisible } = this.state;
-
-    if (this.filterBarRef) {
-      if (isVisible) {
-        this.filterBarRef.classList.add("active");
+    if (this.refs.filterBar) {
+      if (this.state.isVisible) {
+        this.refs.filterBar.classList.add("active");
       } else {
-        this.filterBarRef.classList.remove("active");
+        this.refs.filterBar.classList.remove("active");
       }
     }
+
+    this.listComp.render({ filter: this.state.filter });
+    this.filterGroupComp.render({ filter: this.state.filter });
   }
 }
 
