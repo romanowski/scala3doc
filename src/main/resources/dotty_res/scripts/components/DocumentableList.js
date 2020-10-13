@@ -1,5 +1,3 @@
-const superTypesDataset = "Linear supertypes";
-
 class DocumentableList extends Component {
   constructor(props) {
     super(props);
@@ -72,6 +70,8 @@ class DocumentableList extends Component {
 
 class List {
   _linearTab = "Linear supertypes";
+  _knownTab = "Known subtypes";
+  
 
   constructor(tabsRef, sectionRefs) {
     this._tabsRef = tabsRef;
@@ -80,13 +80,13 @@ class List {
 
   get tabsRefs() {
     return this._tabsRef.filter(
-      (tabRef) => this._getTogglable(tabRef) !== this._linearTab
+      (tabRef) => this._getTogglable(tabRef) !== this._linearTab || this._getTogglable(tabRef) !== this._knownTab 
     );
   }
 
   get sectionsRefs() {
     return this._sectionRefs.filter(
-      (sectionRef) => this._getTogglable(sectionRef) !== this._linearTab
+      (sectionRef) => this._getTogglable(sectionRef) !== this._linearTab || this._getTogglable(tabRef) !== this._knownTab 
     );
   }
 

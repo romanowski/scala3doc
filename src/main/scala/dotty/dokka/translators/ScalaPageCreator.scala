@@ -20,6 +20,9 @@ import org.jetbrains.dokka.model.doc._
 import org.jetbrains.dokka.links.DRIKt.getParent
 import dotty.dokka.model.api.Kind
 import dotty.dokka.model.api.kind
+import dotty.dokka.model.api.parents
+import dotty.dokka.model.api.knownChildren
+import dotty.dokka.model.api.Link
 
 class ScalaPageCreator(
     commentsToContentConverter: CommentsToContentConverter,
@@ -440,28 +443,9 @@ class ScalaPageCreator(
         
 
         def contentForTypesInfo(c: DClass) = {
-            val inheritanceInfo = c.get(InheritanceInfo)
-            val supertypes = inheritanceInfo.parents
-            val subtypes = inheritanceInfo.knownChildren
-            def contentForType(
-                bdr: ScalaPageContentBuilder#ScalaDocumentableContentBuilder,
-                b: DRI
-            ): ScalaPageContentBuilder#ScalaDocumentableContentBuilder = bdr
-                .driLink(b.getClassNames, b)
-
-            def contentForBound(
-                bdr: ScalaPageContentBuilder#ScalaDocumentableContentBuilder,
-                b: Bound
-            ): ScalaPageContentBuilder#ScalaDocumentableContentBuilder = b match {
-                    case t: org.jetbrains.dokka.model.TypeConstructor => t.getProjections.asScala.foldLeft(bdr){
-                        case (builder, p) => p match {
-                            case text: UnresolvedBound => builder.text(text.getName)
-                            case link: TypeParameter => builder.driLink(link.getName, link.getDri) 
-                            case other => builder.text(s"TODO: $other")
-                        }
-                    }
-                    case o => bdr.text(s"TODO: $o")
-            }
+            val supertypes = c.parents
+            val subtypes = c.knownChildren
+            
             val withSupertypes = if(!supertypes.isEmpty) {
                 b.header(2, "Linear supertypes")()
                 .group(
@@ -470,8 +454,13 @@ class ScalaPageCreator(
                     extra = PropertyContainer.Companion.empty plus SimpleAttr.Companion.header("Linear supertypes")
                 ){ gbdr => gbdr
                     .group(kind = ContentKind.Symbol, styles = Set(TextStyle.Monospace)){ grbdr => grbdr
-                        .list(supertypes, separator = ""){ (bdr, elem) => bdr
-                            .group(styles = Set(TextStyle.Paragraph))(contentForBound(_, elem))
+                        .list(supertypes.toList, separator = ""){ (bdr, elem) => bdr
+                            .group(styles = Set(TextStyle.Paragraph)) { builder => 
+                                elem.signature.foldLeft(builder){ (builder, sigElement) => sigElement match 
+                                    case Link(name, dri) => builder.driLink(name, dri)
+                                    case str: String => builder.text(str)   
+                                }
+                            }
                         }
                     }
                 }
@@ -483,11 +472,11 @@ class ScalaPageCreator(
                     kind = ContentKind.Comment,
                     styles = Set(ContentStyle.WithExtraAttributes), 
                     extra = PropertyContainer.Companion.empty plus SimpleAttr.Companion.header("Known subtypes")
-                ){ gbdr => gbdr
-                    .group(kind = ContentKind.Symbol, styles = Set(TextStyle.Monospace)){ grbdr => grbdr
-                        .list(subtypes)(contentForType)
-                    }
-                }
+                )(
+                    _.group(kind = ContentKind.Symbol, styles = Set(TextStyle.Monospace))(
+                        _.list(subtypes.toList)((builder, link) => builder.driLink(link.name, link.dri))
+                    )   
+                )
             } else withSupertypes
 
         }

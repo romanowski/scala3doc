@@ -73,7 +73,6 @@ enum Origin:
   case ExtensionFrom(name: String, dri: DRI)
   case DefinedWithin
 
-
 case class Annotation(val dri: DRI, val params: List[Annotation.AnnotationParameter])
 
 object Annotation:
@@ -83,7 +82,9 @@ object Annotation:
   case class UnresolvedParameter(val name: Option[String] = None, val unresolvedText: String) extends AnnotationParameter
 
 // TODO (longterm) properly represent signatures
-type Signature = Seq[String | (String, DRI)]
+case class Link(name: String, dri: DRI)
+type Signature = Seq[String | Link]
+case class LinkToType(signature: Signature, dri: DRI)
 
 extension (member: Documentable with WithExtraProperties[_]):
   def visibility: Visibility = MemberExtension.getFrom(member).fold(Visibility.Unrestricted)(_.visibilty)
@@ -91,9 +92,12 @@ extension (member: Documentable with WithExtraProperties[_]):
   def modifiers: Seq[dotty.dokka.model.api.Modifier] = MemberExtension.getFrom(member).fold(Nil)(_.modifiers)
   def kind: Kind = MemberExtension.getFrom(member).fold(Kind.Uknown)(_.kind)
   def origin: Origin =  MemberExtension.getFrom(member).fold(Origin.DefinedWithin)(_.origin)
-  def annotations: List[Annotation] = MemberExtension.getFrom(member).fold(Nil)(_.annotations) 
+  def annotations: List[Annotation] = MemberExtension.getFrom(member).fold(Nil)(_.annotations)
+  def name = member.getName
+  def dri = member.getDri 
 
+// TODO rename parent and knownChildren
 extension (classLike: DClass):
   def allMembers: Seq[Documentable] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.members)
-  def parents: List[String | (String, DRI)] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.parents)
-  def knownChildren: List[(String, DRI)] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.knownChildren)
+  def parents: Seq[LinkToType] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.parents)
+  def knownChildren: Seq[Link] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.knownChildren)

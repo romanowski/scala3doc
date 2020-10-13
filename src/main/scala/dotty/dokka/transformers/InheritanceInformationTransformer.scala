@@ -8,34 +8,25 @@ import org.jetbrains.dokka.links.DRI
 import org.jetbrains.dokka.model.properties._
 
 import dotty.dokka.model._
+import dotty.dokka.model.api._
 
-class InheritanceInformationTransformer(val ctx: DokkaContext) extends DocumentableTransformer{
+
+class InheritanceInformationTransformer(val ctx: DokkaContext) extends DocumentableTransformer:
     override def invoke(original: DModule, context: DokkaContext): DModule = {
-        val supertypes = getSupertypes(original)
-        val subtypes = getSubtypesMap(supertypes)
+        val subtypes = getSupertypes(original).groupBy(_._1).transform((k, v) => v.map(_._2))
         completeInheritanceInformation(subtypes)(original)
     }
 
-    private def getSupertypes(d: Documentable): List[(DRI, DRI)] = d match {
+    private def getSupertypes(d: Documentable): Seq[(DRI, Link)] = d match {
         case m: DModule => m.getPackages.asScala.toList.flatMap(p => getSupertypes(p))
         case p: DPackage => p.getClasslikes.asScala.toList.flatMap(c => getSupertypes(c))
-        case c: DClass => c.get(InheritanceInfo).parents.map(p => (c.getDri, getTypeDRI(p))) ++ c.getClasslikes.asScala.toList.flatMap(c => getSupertypes(c))
+        case c: DClass => 
+            val selfLink = Link(c.name, c.dri)
+            c.parents.map(_._2 -> selfLink) ++ c.getClasslikes.asScala.flatMap(getSupertypes)
         case other => List.empty
     }
 
-    private def getTypeDRI(b: Bound) = b match {
-        case t: TypeConstructor => t.getDri
-        case other => throw IllegalStateException(s"Supertype without DRI: $b")
-    }
-
-    private def getSubtypesMap(supertypesList: List[(DRI, DRI)]): Map[DRI, List[DRI]] = supertypesList
-        .map( (a,b) => (b,a) )
-        .groupBy( (a,b) => a )
-        .map{
-            case (key, l) => (key, l.map(_(1)))
-        }.toMap
-
-    private def completeInheritanceInformation[T <: Documentable](subtypes: Map[DRI, List[DRI]])(d: T): T = (d match {
+    private def completeInheritanceInformation[T <: Documentable](subtypes: Map[DRI, Seq[Link]])(d: T): T = (d match {
         case m: DModule => 
             m.updatePackanges(_.map(completeInheritanceInformation(subtypes)))
         
@@ -43,17 +34,8 @@ class InheritanceInformationTransformer(val ctx: DokkaContext) extends Documenta
             p.updateClasslikes(_.map(completeInheritanceInformation(subtypes)))
         
         case c: DClass => 
-            val newInheritanceInfo = InheritanceInfo(
-                c.get(InheritanceInfo).parents,
-                subtypes.get(c.getDri).getOrElse(List.empty)
-            )
+            val original = CompositeMemberExtension.getFrom(c).getOrElse(CompositeMemberExtension.empty)
+            val newInheritanceInfo = original.copy(knownChildren = subtypes.get(c.dri).getOrElse(Nil))
             c.updateClasslikes(_.map(completeInheritanceInformation(subtypes))).put(newInheritanceInfo)
-
         case other => other
     }).asInstanceOf[T]
-
-    private def modifyExtras(p: PropertyContainer[DClass], i: InheritanceInfo): PropertyContainer[DClass] = 
-        val properties = p.getMap.asScala.toMap.filter( (key,value) => key != InheritanceInfo ).map((key, value) => value).asJavaCollection
-        PropertyContainer.Companion.empty addAll properties plus i
-
-}

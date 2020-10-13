@@ -12,6 +12,11 @@ import dotty.dokka.model.api.Visibility
 import dotty.dokka.model.api.MemberExtension
 import dotty.dokka.model.api.Modifier
 import dotty.dokka.model.api.Kind
+import dotty.dokka.model.api.CompositeMemberExtension
+import dotty.dokka.model.api.asSignature
+import dotty.dokka.model.api.Link
+import dotty.dokka.model.api.LinkToType
+import dotty.dokka.model.api.asSignature
 
 
 trait ClassLikeSupport:
@@ -37,6 +42,7 @@ trait ClassLikeSupport:
       documentation: Map[DokkaConfiguration$DokkaSourceSet, DocumentationNode] = classDef.symbol.documentation,
       additionalExtras: Seq[ExtraProperty[DClass]] = Seq.empty
     ): DClass = 
+      val supertypes = getSupertypes(classDef).filterNot { case (_, tpe) => tpe == defn.ObjectClass || tpe == defn.AnyClass }
       new DClass(
           dri,
           name,
@@ -48,7 +54,7 @@ trait ClassLikeSupport:
           placeholderVisibility,
           null,
           generics.asJava,
-          supertypes.map{case (key,value) => (key, value.asJava)}.asJava,
+          Map.empty.asJava,
           documentation.asJava,
           null,
           placeholderModifier,
@@ -62,7 +68,11 @@ trait ClassLikeSupport:
               classDef.getInheritedDefinitions,
               classDef.getGivenMethods ++ classDef.getGivenFields
             ))
-            .plus(InheritanceInfo(classDef.getSupertypes, List.empty))
+            .plus(CompositeMemberExtension(
+              Nil, 
+              supertypes.map{ case(s, tpe) => LinkToType(tpe.dokkaType.asSignature, s.dri) },
+              List.empty)
+            )
             .plus(ImplicitConversions(classDef.getImplicitConversions))
             .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers, kind, classDef.symbol.getAnnotations()))
             .addAll(additionalExtras.asJava)
@@ -166,7 +176,7 @@ trait ClassLikeSupport:
       .map(m => parseMethod(m) -> m.tree.asInstanceOf[DefDef])
       
       val conversions = (givenFields ++ implicitVals ++ implicitConversionDefs).map {
-        case (d: Documentable, AppliedType(tpe, tpeArgs)) => (tpeArgs(0), tpeArgs(1)) match {
+          case (d: Documentable, AppliedType(tpe, tpeArgs)) => (tpeArgs(0), tpeArgs(1)) match {
           case (t1: Type, t2: Type) => ImplicitConversion(d, t1.typeSymbol.dri, t2.typeSymbol.dri)
         }
       } ++ implicitDefs.map {
@@ -222,8 +232,7 @@ trait ClassLikeSupport:
         parentSymbol = if parentTree.symbol.isClassConstructor then parentTree.symbol.owner else parentTree.symbol
         if parentSymbol != defn.ObjectClass && parentSymbol != defn.AnyClass
       yield parentTree.dokkaType
-
-    def getSupertypes: List[Bound] = getSupertypes(c).filterNot(s => s == defn.ObjectType || s == defn.AnyType).map(_.dokkaType)
+      
 
     def getConstructors: List[Symbol] = membersToDocument.collect {
       case d: DefDef if d.symbol.isClassConstructor && c.constructor.symbol != d.symbol => d.symbol

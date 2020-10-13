@@ -97,14 +97,6 @@ case class SourceLinks(
 
 object SourceLinks extends BaseKey[Documentable, SourceLinks]
 
-case class InheritanceInfo(
-  val parents: List[Bound],
-  val knownChildren: List[DRI]
-) extends ExtraProperty[DClasslike]:
-  override def getKey = InheritanceInfo
-
-object InheritanceInfo extends BaseKey[DClasslike, InheritanceInfo]  
-
 enum OriginInfo extends ExtraProperty[Documentable]:
   case InheritedFrom(name: String, dri: DRI)
   case ImplicitlyAddedBy(name: String, dri: DRI)

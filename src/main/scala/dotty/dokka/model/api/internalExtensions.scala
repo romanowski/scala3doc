@@ -10,10 +10,14 @@ import org.jetbrains.dokka.model.DFunction
 import org.jetbrains.dokka.model.DClass
 import org.jetbrains.dokka.model.DocumentableSource
 import org.jetbrains.dokka.model.Dynamic
+import org.jetbrains.dokka.model.Bound
+import org.jetbrains.dokka.model.TypeConstructor
+import org.jetbrains.dokka.model.TypeParameter
+import org.jetbrains.dokka.model.UnresolvedBound
 
 import collection.JavaConverters._
 import org.jetbrains.dokka.links._
-import org.jetbrains.dokka.model.doc._
+import org.jetbrains.dokka.model.doc.DocumentationNode
 import org.jetbrains.dokka.model.properties._  
 import java.util.{List => JList, Set => JSet}
 
@@ -35,12 +39,13 @@ object MemberExtension extends BaseKey[Documentable, MemberExtension]:
 
 case class CompositeMemberExtension(
   members : Seq[Member] = Nil,
-  parents: List[String | (String, DRI)] = Nil,
-  knownChildren: List[(String, DRI)] = Nil
+  parents: Seq[LinkToType] = Nil,
+  knownChildren: Seq[Link] = Nil
 ) extends ExtraProperty[DClass]:
   override def getKey = CompositeMemberExtension
 
-object CompositeMemberExtension extends BaseKey[DClass, CompositeMemberExtension]  
+object CompositeMemberExtension extends BaseKey[DClass, CompositeMemberExtension]:
+  val empty = CompositeMemberExtension()
 
 type Member = DClass
 
@@ -78,3 +83,12 @@ extension [E <: Documentable with WithExtraProperties[E]](member: E):
   def copy(modifiers: Seq[Modifier]) =
     val ext = MemberExtension.getFrom(member).getOrElse(MemberExtension.empty).copy(modifiers = modifiers)
     member.put(ext)
+
+extension (bound: Bound):
+  def asSignature: Signature = bound match 
+    case tc: TypeConstructor =>
+      tc.getProjections.asScala.toSeq.map {
+        case txt: UnresolvedBound => txt.getName
+        case link: TypeParameter =>
+          Link(link.getName, link.getDri)
+      }

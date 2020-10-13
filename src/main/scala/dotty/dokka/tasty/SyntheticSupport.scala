@@ -103,8 +103,8 @@ trait SyntheticsSupport:
     given dotc.core.Contexts.Context = r.rootContext.asInstanceOf
     val classdef = rdef.asInstanceOf[dotc.ast.tpd.TypeDef]
     val ref = classdef.symbol.info.asInstanceOf[dotc.core.Types.ClassInfo].appliedRef
-    val baseTypes: List[dotc.core.Types.Type] = ref.baseClasses.map(b => ref.baseType(b))
-    baseTypes.asInstanceOf[List[r.Type]]
+    val baseTypes = ref.baseClasses.map(b => b -> ref.baseType(b))
+    baseTypes.asInstanceOf[List[(r.Symbol, r.Type)]]
   }
 
   def getSupertypes(c: ClassDef) = hackGetSupertypes(self.reflect)(c).tail
