@@ -114,21 +114,11 @@ enum OriginInfo extends ExtraProperty[Documentable]:
 
 object OriginInfo extends BaseKey[Documentable, OriginInfo]  
 
-case class AnnotationsInfo(val annotations: List[AnnotationsInfo.Annotation]) extends ExtraProperty[Documentable]:
-    override def getKey = AnnotationsInfo
-
 case class ImplicitConversions(val conversions: List[ImplicitConversion]) extends ExtraProperty[WithScope]:
   override def getKey = ImplicitConversions
 
 object ImplicitConversions extends BaseKey[WithScope, ImplicitConversions]
 
-object AnnotationsInfo extends BaseKey[Documentable, AnnotationsInfo]:
-    case class Annotation(val dri: DRI, val params: List[AnnotationParameter])
-
-    sealed trait AnnotationParameter
-    case class PrimitiveParameter(val name: Option[String] = None, val value: String) extends AnnotationParameter
-    case class LinkParameter(val name: Option[String] = None, val dri: DRI, val value: String) extends AnnotationParameter
-    case class UnresolvedParameter(val name: Option[String] = None, val unresolvedText: String) extends AnnotationParameter
 
 case class IsInherited(flag: Boolean) extends ExtraProperty[Documentable]:
   override def getKey = IsInherited

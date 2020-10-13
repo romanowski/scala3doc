@@ -37,7 +37,6 @@ trait ClassLikeSupport:
       documentation: Map[DokkaConfiguration$DokkaSourceSet, DocumentationNode] = classDef.symbol.documentation,
       additionalExtras: Seq[ExtraProperty[DClass]] = Seq.empty
     ): DClass = 
-      val annotations = AnnotationsInfo(classDef.symbol.getAnnotations())
       new DClass(
           dri,
           name,
@@ -64,9 +63,8 @@ trait ClassLikeSupport:
               classDef.getGivenMethods ++ classDef.getGivenFields
             ))
             .plus(InheritanceInfo(classDef.getSupertypes, List.empty))
-            .plus(annotations)
             .plus(ImplicitConversions(classDef.getImplicitConversions))
-            .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers, kind))
+            .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers, kind, classDef.symbol.getAnnotations()))
             .addAll(additionalExtras.asJava)
       )
 
@@ -81,38 +79,35 @@ trait ClassLikeSupport:
       documentation: Map[DokkaConfiguration$DokkaSourceSet, DocumentationNode] = classDef.symbol.documentation,
       additionalExtras: Seq[ExtraProperty[DClass]] = Seq.empty,
       modifiers: Seq[Modifier] = classDef.symbol.getExtraModifiers(),
-    ): DClass = {
-      val annotations = AnnotationsInfo(classDef.symbol.getAnnotations())
-      new DClass(
-          dri,
-          name,
-          JList(),
-          JList(),
-          JList(),
-          JList(),
-          sources.asJava,
-          placeholderVisibility,
-          null,
-          generics.asJava,
-          supertypes.map{case (key,value) => (key, value.asJava)}.asJava,
-          documentation.asJava,
-          null,
-          placeholderModifier,
-          inspector.sourceSet.toSet,
-          PropertyContainer.Companion.empty()
-            .plus(ClasslikeExtension(
-              classDef.getParents,
-              classDef.getConstructorMethod,
-              None,
-              List.empty,
-              null,
-              List.empty
-            ))
-            .plus(annotations)
-            .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers, kind))
-            .addAll(additionalExtras.asJava)
-      )
-    }
+    ): DClass = new DClass(
+        dri,
+        name,
+        JList(),
+        JList(),
+        JList(),
+        JList(),
+        sources.asJava,
+        placeholderVisibility,
+        null,
+        generics.asJava,
+        supertypes.map{case (key,value) => (key, value.asJava)}.asJava,
+        documentation.asJava,
+        null,
+        placeholderModifier,
+        inspector.sourceSet.toSet,
+        PropertyContainer.Companion.empty()
+          .plus(ClasslikeExtension(
+            classDef.getParents,
+            classDef.getConstructorMethod,
+            None,
+            List.empty,
+            null,
+            List.empty
+          ))
+          .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers, kind, classDef.symbol.getAnnotations()))
+          .addAll(additionalExtras.asJava)
+    )
+    
 
   extension (c: ClassDef):
     def membersToDocument = c.body.filterNot(_.symbol.isHiddenByVisibility)
@@ -356,7 +351,6 @@ trait ClassLikeSupport:
       isGiven: Boolean = false,
       isInherited: Boolean = false,
     ): DFunction =
-    val annotations = AnnotationsInfo(methodSymbol.getAnnotations())
     val method = methodSymbol.tree.asInstanceOf[DefDef]
     val paramLists = if emptyParamsList then Nil else method.paramss
     val genericTypes = if (methodSymbol.isClassConstructor) Nil else method.typeParams
@@ -402,8 +396,6 @@ trait ClassLikeSupport:
         }
       ).flatten
 
-    val kind = if isConstructor then Kind.Constructor else Kind.Enum
-
     new DFunction(
       methodSymbol.dri,
       name,
@@ -420,13 +412,15 @@ trait ClassLikeSupport:
       sourceSet.toSet(),
       PropertyContainer.Companion.empty()
         plus MethodExtension(paramLists.map(_.size), extInfo)
-        plus(annotations)
-        plus(MemberExtension(methodSymbol.getVisibility(), methodSymbol.getExtraModifiers(), kind))
+        plus(MemberExtension(
+          methodSymbol.getVisibility(), 
+          methodSymbol.getExtraModifiers(), 
+          if isConstructor then Kind.Constructor else Kind.Enum, 
+          methodSymbol.getAnnotations()))
         addAll optionalExtras.asJava
     )
 
   def parseArgument(argument: ValDef, prefix: Symbol => String, isExtendedSymbol: Boolean = false, isGrouped: Boolean = false): DParameter =
-    val annotations = AnnotationsInfo(argument.symbol.getAnnotations())
     new DParameter(
       argument.symbol.dri,
       prefix(argument.symbol) + argument.symbol.name,
@@ -436,7 +430,7 @@ trait ClassLikeSupport:
       sourceSet.toSet(),
       PropertyContainer.Companion.empty()
         .plus(ParameterExtension(isExtendedSymbol, isGrouped))
-        .plus(annotations)
+        .plus(MemberExtension.empty.copy(annotations = argument.symbol.getAnnotations()))
     )
 
   def parseTypeArgument(argument: TypeDef): DTypeParameter =
@@ -457,7 +451,6 @@ trait ClassLikeSupport:
     )
 
   def parseTypeDef(typeDef: TypeDef): DProperty =
-    val annotations = AnnotationsInfo(typeDef.symbol.getAnnotations())
 
     def isTreeAbstract(typ: Tree): Boolean = typ match {
       case TypeBoundsTree(_, _) => true
@@ -469,8 +462,6 @@ trait ClassLikeSupport:
     val (generics, tpeTree) = typeDef.rhs match
       case LambdaTypeTree(params, body) => (params.map(parseTypeArgument), body)
       case tpe => (Nil, tpe)
-
-    val kind = Kind.Type(!isTreeAbstract(typeDef.rhs), typeDef.symbol.isOpaque)
 
     new DProperty(
       typeDef.symbol.dri,
@@ -486,39 +477,43 @@ trait ClassLikeSupport:
       /*modifier =*/ placeholderModifier,
       sourceSet.toSet(),
       /*generics =*/ generics.asJava, // TODO
-      PropertyContainer.Companion.empty()
-        plus MemberExtension(typeDef.symbol.getVisibility(), typeDef.symbol.getExtraModifiers(), kind)
-        plus annotations
+      PropertyContainer.Companion.empty() plus MemberExtension(
+        typeDef.symbol.getVisibility(),
+        typeDef.symbol.getExtraModifiers(), 
+        Kind.Type(!isTreeAbstract(typeDef.rhs), typeDef.symbol.isOpaque),
+        typeDef.symbol.getAnnotations()
+        )
     )
 
-  def parseValDef(valDef: ValDef, isGiven: Boolean = false): DProperty = {
-    val annotations = AnnotationsInfo(valDef.symbol.getAnnotations())
-      def givenInstance = Some(valDef.symbol.moduleClass)
-          .filter(_.exists)
-          .map(_.tree.asInstanceOf[ClassDef])
-          .map(_.getParents)
-          .filter(!_.isEmpty)
-          .map(_.headOption)
-          .flatten
-      val optionalExtras = Seq(Option.when(isGiven)(IsGiven(givenInstance))).flatten
-      val kind = if valDef.symbol.flags.is(Flags.Mutable) then Kind.Var else Kind.Val
-      new DProperty(
-        valDef.symbol.dri,
-        valDef.name,
-        /*documentation =*/ valDef.symbol.documentation.asJava,
-        /*expectPresentInSet =*/ null, // unused
-        /*sources =*/ valDef.symbol.source.asJava,
-        /*visibility =*/ placeholderVisibility,
-        /*type =*/ valDef.tpt.dokkaType,
-        /*receiver =*/ null, // Not used
-        /*setter =*/ null,
-        /*getter =*/ null,
-        /*modifier =*/ placeholderModifier,
-        sourceSet.toSet(),
-        /*generics =*/ Nil.asJava,
-        PropertyContainer.Companion.empty() plus
-          annotations
-          plus MemberExtension(valDef.symbol.getVisibility(), valDef.symbol.getExtraModifiers(), kind)
-          addAll optionalExtras.asJava
-      )
-  }
+  def parseValDef(valDef: ValDef, isGiven: Boolean = false): DProperty =
+    def givenInstance = Some(valDef.symbol.moduleClass)
+        .filter(_.exists)
+        .map(_.tree.asInstanceOf[ClassDef])
+        .map(_.getParents)
+        .filter(!_.isEmpty)
+        .map(_.headOption)
+        .flatten
+    val optionalExtras = Seq(Option.when(isGiven)(IsGiven(givenInstance))).flatten
+
+    new DProperty(
+      valDef.symbol.dri,
+      valDef.name,
+      /*documentation =*/ valDef.symbol.documentation.asJava,
+      /*expectPresentInSet =*/ null, // unused
+      /*sources =*/ valDef.symbol.source.asJava,
+      /*visibility =*/ placeholderVisibility,
+      /*type =*/ valDef.tpt.dokkaType,
+      /*receiver =*/ null, // Not used
+      /*setter =*/ null,
+      /*getter =*/ null,
+      /*modifier =*/ placeholderModifier,
+      sourceSet.toSet(),
+      /*generics =*/ Nil.asJava,
+      PropertyContainer.Companion.empty().plus(MemberExtension(
+          valDef.symbol.getVisibility(), 
+          valDef.symbol.getExtraModifiers(), 
+          if valDef.symbol.flags.is(Flags.Mutable) then Kind.Var else Kind.Val,
+          valDef.symbol.getAnnotations()
+      )).addAll(optionalExtras.asJava)
+    )
+  

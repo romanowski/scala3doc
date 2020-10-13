@@ -23,15 +23,15 @@ private [model] case class MemberExtension(
   visibilty: Visibility,
   modifiers: Seq[dotty.dokka.model.api.Modifier],
   kind: Kind,  // = Kind.Uknown,
+  val annotations: List[Annotation], //  = Nil
   signature: Signature = Nil, // TODO remove defaults!
   origin: Origin = Origin.DefinedWithin,
   isEnumMember: Boolean = false,
-  val annotations: List[Annotation] = Nil
 ) extends ExtraProperty[Documentable]:
  override def getKey = MemberExtension
 
 object MemberExtension extends BaseKey[Documentable, MemberExtension]:
-  val empty = MemberExtension(Visibility.Unrestricted, Nil, Kind.Uknown)
+  val empty = MemberExtension(Visibility.Unrestricted, Nil, Kind.Uknown, Nil)
 
 case class CompositeMemberExtension(
   members : Seq[Member] = Nil,

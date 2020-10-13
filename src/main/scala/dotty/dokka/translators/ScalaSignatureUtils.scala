@@ -10,6 +10,8 @@ import collection.JavaConverters._
 import dotty.dokka.model.api.visibility
 import dotty.dokka.model.api.modifiers
 import dotty.dokka.model.api.annotations
+import dotty.dokka.model.api.Annotation
+
 
 type InlineContent = String | (String, DRI)
 
@@ -38,21 +40,21 @@ trait SignatureBuilder extends ScalaSignatureUtils {
                 tail.foldLeft(elemOp(text(prefix), head))((b, e) => elemOp(b.text(separator), e)).text(suffix)
         }
 
-    def annotationsBlock(d: Documentable): SignatureBuilder = 
+    def annotationsBlock(d: Documentable with WithExtraProperties[_]): SignatureBuilder = 
             group(styles = Set(TextStyle.Block), kind = ContentKind.Annotations){ bdr => 
-                d.annotations().foldLeft(bdr){ (bdr, annotation) => bdr
+                d.annotations.foldLeft(bdr){ (bdr, annotation) => bdr
                     .buildAnnotation(annotation)
                 }
             }
         
-        def annotationsInline(d: Documentable): SignatureBuilder =
+        def annotationsInline(d: Documentable with WithExtraProperties[_]): SignatureBuilder =
             group(styles = Set(TextStyle.Span), kind = ContentKind.Annotations){ bdr => 
-                d.annotations().foldLeft(bdr){ (bdr, annotation) => bdr
+                d.annotations.foldLeft(bdr){ (bdr, annotation) => bdr
                     .buildAnnotation(annotation)
                 }
             }
 
-        private def buildAnnotation(a: AnnotationsInfo.Annotation): SignatureBuilder = 
+        private def buildAnnotation(a: Annotation): SignatureBuilder = 
             group(){ bdr => bdr
                 .text("@")
                 .driLink(a.dri.getClassNames, a.dri)
@@ -61,7 +63,7 @@ trait SignatureBuilder extends ScalaSignatureUtils {
             }
 
 
-        private def buildAnnotationParams(a: AnnotationsInfo.Annotation): SignatureBuilder = 
+        private def buildAnnotationParams(a: Annotation): SignatureBuilder = 
             if !a.params.isEmpty then 
                 group(styles = Set(TextStyle.BreakableAfter)){ bdr => bdr
                     .list(a.params, "(", ")", ", "){ (bdr, param) => bdr
@@ -75,12 +77,12 @@ trait SignatureBuilder extends ScalaSignatureUtils {
                 case _ => this
             }
 
-        private def buildAnnotationParameter(a: AnnotationsInfo.AnnotationParameter): SignatureBuilder = a match {
-            case AnnotationsInfo.PrimitiveParameter(name, value) => 
+        private def buildAnnotationParameter(a: Annotation.AnnotationParameter): SignatureBuilder = a match {
+            case Annotation.PrimitiveParameter(name, value) => 
                 addParameterName(name).text(value)
-            case AnnotationsInfo.LinkParameter(name, dri, text) => 
+            case Annotation.LinkParameter(name, dri, text) => 
                 addParameterName(name).driLink(text, dri)
-            case AnnotationsInfo.UnresolvedParameter(name, value) => 
+            case Annotation.UnresolvedParameter(name, value) => 
                 addParameterName(name).text(value)
         }
 
@@ -133,14 +135,5 @@ trait SignatureBuilder extends ScalaSignatureUtils {
 }
 
 trait ScalaSignatureUtils:
-    val ignoreRules: List[(AnnotationsInfo.Annotation) => Boolean] = List(
-        a => a.dri.getPackageName.startsWith("scala.annotation.internal")
-    )
-
     extension (tokens: Seq[String]) def toSignatureString(): String =
         tokens.filter(_.trim.nonEmpty).mkString(""," "," ")
-
-    extension [T <: Documentable] (d: T) def annotations() = (d match {
-        case e: Documentable with WithExtraProperties[T] => List.empty // TODO :  e.annotations
-        case _ => List.empty
-    }).filterNot(annotation => ignoreRules.exists(ignoreFun => ignoreFun(annotation)))

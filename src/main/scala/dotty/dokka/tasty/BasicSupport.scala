@@ -7,6 +7,8 @@ import dotty.dokka._
 import dotty.dokka.model.api.Visibility
 import dotty.dokka.model.api.VisibilityScope
 import dotty.dokka.model.api.Modifier
+import dotty.dokka.model.api.Annotation
+
 
 import scala.tasty.Reflection
 
@@ -17,26 +19,25 @@ trait BasicSupport:
   object SymOps extends SymOps[reflect.type](reflect)
   export SymOps._
 
-  def parseAnnotation(annotTerm: Term): AnnotationsInfo.Annotation = {
+  def parseAnnotation(annotTerm: Term): Annotation = 
     val dri = annotTerm.tpe.typeSymbol.dri
-    val params = annotTerm match {
+    val params = annotTerm match 
       case Apply(target, appliedWith) => {
         appliedWith.map {
-          case Literal(Constant(value)) => AnnotationsInfo.PrimitiveParameter(None, value match {
+          case Literal(Constant(value)) => Annotation.PrimitiveParameter(None, value match {
             case s: String => "\"" + s"$s" + "\""
             case other => other.toString()
           })
           case Select(qual, name) =>
             val dri = qual.tpe.termSymbol.companionClass.dri
-            AnnotationsInfo.LinkParameter(None, dri, s"${dri.getClassNames}.$name")
+            Annotation.LinkParameter(None, dri, s"${dri.getClassNames}.$name") // TODO this is a nasty hack!
 
-          case other => AnnotationsInfo.UnresolvedParameter(None, other.show)
+          case other => Annotation.UnresolvedParameter(None, other.show)
         }
       }
-  }
-
-    AnnotationsInfo.Annotation(dri, params)
-  }
+  
+    Annotation(dri, params)
+  
 
   extension (sym: reflect.Symbol):
     def documentation(using cxt: reflect.Context) = sym.comment match
@@ -52,7 +53,8 @@ trait BasicSupport:
         case None => Map.empty
       }
 
-    def getAnnotations(): List[AnnotationsInfo.Annotation] = sym.annots.map(parseAnnotation).reverse
+    def getAnnotations(): List[Annotation] = 
+    sym.annots.filterNot(_.symbol.packageName.startsWith("scala.annotation.internal")).map(parseAnnotation).reverse
 
   private val emptyDRI = DRI.Companion.getTopLevel
 

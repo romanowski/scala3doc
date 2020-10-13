@@ -61,7 +61,7 @@ enum Kind(val name: String){
   case Constructor extends Kind("def")
   case Var extends Kind("var")
   case Val extends Kind("val")
-  case Type(concreate: Boolean, opaque: Boolean) extends Kind("Type")
+  case Type(concreate: Boolean, opaque: Boolean) extends Kind("Type") // should we handle opaque as modifier?
   case Given extends Kind("Given")
 
   case Uknown extends Kind("Unknown")
