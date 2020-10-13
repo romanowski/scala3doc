@@ -42,7 +42,7 @@ trait ClassLikeSupport:
       documentation: Map[DokkaConfiguration$DokkaSourceSet, DocumentationNode] = classDef.symbol.documentation,
       additionalExtras: Seq[ExtraProperty[DClass]] = Seq.empty
     ): DClass = 
-      val supertypes = getSupertypes(classDef).filterNot { case (_, tpe) => tpe == defn.ObjectClass || tpe == defn.AnyClass }
+      val supertypes = classDef.getParents.map(tree => LinkToType(tree.dokkaType.asSignature, tree.symbol.dri))
       new DClass(
           dri,
           name,
@@ -61,18 +61,13 @@ trait ClassLikeSupport:
           inspector.sourceSet.toSet,
           PropertyContainer.Companion.empty()
             .plus(ClasslikeExtension(
-              classDef.getParents,
               classDef.getConstructorMethod,
               classDef.getCompanion,
               classDef.getExtensionGroups,
               classDef.getInheritedDefinitions,
               classDef.getGivenMethods ++ classDef.getGivenFields
             ))
-            .plus(CompositeMemberExtension(
-              Nil, 
-              supertypes.map{ case(s, tpe) => LinkToType(tpe.dokkaType.asSignature, s.dri) },
-              List.empty)
-            )
+            .plus(CompositeMemberExtension(Nil, supertypes, Nil))
             .plus(ImplicitConversions(classDef.getImplicitConversions))
             .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers, kind, classDef.symbol.getAnnotations()))
             .addAll(additionalExtras.asJava)
@@ -107,7 +102,6 @@ trait ClassLikeSupport:
         inspector.sourceSet.toSet,
         PropertyContainer.Companion.empty()
           .plus(ClasslikeExtension(
-            classDef.getParents,
             classDef.getConstructorMethod,
             None,
             List.empty,
@@ -226,12 +220,12 @@ trait ClassLikeSupport:
       )
     }
 
-    def getParents: List[Bound] =
+    def getParents: List[Tree] =
       for
         parentTree <- c.parents if isValidPos(parentTree.pos)  // We assume here that order is correct
         parentSymbol = if parentTree.symbol.isClassConstructor then parentTree.symbol.owner else parentTree.symbol
         if parentSymbol != defn.ObjectClass && parentSymbol != defn.AnyClass
-      yield parentTree.dokkaType
+      yield parentTree
       
 
     def getConstructors: List[Symbol] = membersToDocument.collect {
@@ -394,8 +388,8 @@ trait ClassLikeSupport:
 
       typeSymbol.map(_.tree).collect {
         case c: ClassDef => c.getParents.headOption
-        case _ => Some(method.returnTpt.dokkaType)
-      }.flatten
+        case _ => Some(method.returnTpt)
+      }.flatten.map(_.dokkaType)
     }
     val optionalExtras = Seq(
         Option.when(isGiven)(IsGiven(getGivenInstance)),
@@ -498,10 +492,9 @@ trait ClassLikeSupport:
     def givenInstance = Some(valDef.symbol.moduleClass)
         .filter(_.exists)
         .map(_.tree.asInstanceOf[ClassDef])
-        .map(_.getParents)
-        .filter(!_.isEmpty)
-        .map(_.headOption)
-        .flatten
+        .flatMap(_.getParents.headOption)
+        .map(_.dokkaType)
+
     val optionalExtras = Seq(Option.when(isGiven)(IsGiven(givenInstance))).flatten
 
     new DProperty(

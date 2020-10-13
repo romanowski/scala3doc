@@ -17,6 +17,9 @@ import org.jetbrains.dokka.model.properties.PropertyContainer
 import org.jetbrains.dokka.model.doc._
 import dotty.dokka.model.api.visibility
 import dotty.dokka.model.api.modifiers
+import dotty.dokka.model.api.origin
+import dotty.dokka.model.api.Origin
+
 
 import dotty.dokka._
 
@@ -39,12 +42,15 @@ object FilterAttributes:
       Map.empty
 
 
-  private def origin(documentable: Documentable): Map[String, String] = 
-    OriginInfo.getFrom(documentable).fold(Map.empty){
-      case OriginInfo.InheritedFrom(name, _) => Map("inherited" -> name)
-      case OriginInfo.ImplicitlyAddedBy(name: String, _) => Map("implicitly" -> s"by $name")
-      case OriginInfo.ExtensionFrom(name: String, _) => Map("extension" -> s"from $name")
-    }
+  private def origin(documentable: Documentable): Map[String, String] =  documentable match
+    case v: Documentable with WithExtraProperties[_] => 
+      v.origin match
+        case Origin.InheritedFrom(name, _) => Map("inherited" -> name)
+        case Origin.ImplicitlyAddedBy(name: String, _) => Map("implicitly" -> s"by $name")
+        case Origin.ExtensionFrom(name: String, _) => Map("extension" -> s"from $name")
+        case _ => Map.empty
+    case _ =>
+      Map.empty     
 
   def defaultValues = Map(
     "inherited" ->  "Not inherited",

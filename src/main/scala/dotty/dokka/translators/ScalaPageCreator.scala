@@ -475,7 +475,7 @@ class ScalaPageCreator(
                 )(
                     _.group(kind = ContentKind.Symbol, styles = Set(TextStyle.Monospace))(
                         _.list(subtypes.toList)((builder, link) => builder.driLink(link.name, link.dri))
-                    )   
+                        )   
                 )
             } else withSupertypes
 

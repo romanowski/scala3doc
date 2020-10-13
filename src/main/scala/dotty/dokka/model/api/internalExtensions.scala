@@ -83,6 +83,10 @@ extension [E <: Documentable with WithExtraProperties[E]](member: E):
   def copy(modifiers: Seq[Modifier]) =
     val ext = MemberExtension.getFrom(member).getOrElse(MemberExtension.empty).copy(modifiers = modifiers)
     member.put(ext)
+  
+  // def withOrigin(origin: Origin)
+  //   val ext = MemberExtension.getFrom(member).getOrElse(MemberExtension.empty).copy(origin = origin)
+  //   member.put(ext)
 
 extension (bound: Bound):
   def asSignature: Signature = bound match 

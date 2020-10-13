@@ -98,17 +98,6 @@ trait SyntheticsSupport:
 
   def hackIsLeftAssoc(d: Symbol): Boolean = !d.name.endsWith(":")
 
-  def hackGetSupertypes(r: Reflection)(rdef: r.ClassDef) = {
-    import dotty.tools.dotc
-    given dotc.core.Contexts.Context = r.rootContext.asInstanceOf
-    val classdef = rdef.asInstanceOf[dotc.ast.tpd.TypeDef]
-    val ref = classdef.symbol.info.asInstanceOf[dotc.core.Types.ClassInfo].appliedRef
-    val baseTypes = ref.baseClasses.map(b => b -> ref.baseType(b))
-    baseTypes.asInstanceOf[List[(r.Symbol, r.Type)]]
-  }
-
-  def getSupertypes(c: ClassDef) = hackGetSupertypes(self.reflect)(c).tail
-
   object MatchTypeCase:
     def unapply(tpe: Type): Option[(TypeOrBounds, TypeOrBounds)] =
       tpe match

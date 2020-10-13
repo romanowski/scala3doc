@@ -18,6 +18,10 @@ import dotty.dokka.model.api.modifiers
 import dotty.dokka.model.api.Modifier
 import dotty.dokka.model.api.kind
 import dotty.dokka.model.api.Kind
+import dotty.dokka.model.api.parents
+import dotty.dokka.model.api.Link
+import dotty.dokka.model.api.LinkToType
+
 
 class ScalaSignatureProvider(contentConverter: CommentsToContentConverter, logger: DokkaLogger) extends SignatureProvider with ScalaSignatureUtils:
     private val default = new KotlinSignatureProvider(contentConverter, logger)
@@ -67,25 +71,15 @@ object ScalaSignatureProvider:
 
     private def enumEntrySignature(entry: DClass, bdr: SignatureBuilder): SignatureBuilder =
         val ext = entry.get(ClasslikeExtension)
-        val temp: SignatureBuilder = bdr
+        val withPrefixes: SignatureBuilder = bdr
             .text("case ")
             .name(entry.getName, entry.getDri)
             .generics(entry)
 
-        val temp2 = ext.constructor.toSeq.foldLeft(temp){ (bdr, elem) =>
+        val withParameters = ext.constructor.toSeq.foldLeft(withPrefixes){ (bdr, elem) =>
             bdr.functionParameters(elem)
         }
-        ext.parentTypes match{
-            case Nil => temp2
-            case extendType :: withTypes =>
-                val temp3 = temp2
-                    .text(" extends ")
-                    .typeSignature(extendType)
-                withTypes.foldLeft(temp3){ (bdr, tpe) =>
-                    bdr.text(" with ").typeSignature(tpe)
-
-                }
-        }
+        parentsSignature(entry, withParameters)
 
     private def enumPropertySignature(entry: DProperty, builder: SignatureBuilder): SignatureBuilder = 
         val modifiedType = entry.getType match
@@ -105,27 +99,31 @@ object ScalaSignatureProvider:
             .text(" extends ")
             .typeSignature(modifiedType)
 
+    private def parentsSignature(d: DClass, builder: SignatureBuilder): SignatureBuilder =
+        d.parents match
+        case Nil => builder
+        case extendType :: withTypes =>
+            def printTypeLink(tpe: LinkToType, builder: SignatureBuilder): SignatureBuilder = 
+                tpe.signature.foldLeft(builder){ (b, e) => e match
+                    case Link(name, dri) => b.driLink(name, dri)
+                    case txt: String => b.text(txt)
+                }
+            
+            val extendPart = printTypeLink(extendType, builder.text(" extends "))
+            withTypes.foldLeft(extendPart)((bdr, tpe) => printTypeLink(tpe, bdr.text(" with ")))
 
     private def classSignature(clazz: DClass, builder: SignatureBuilder): SignatureBuilder =
         val ext = clazz.get(ClasslikeExtension)
-        val temp = builder
+        val prefixes = builder
             .annotationsBlock(clazz)
             .modifiersAndVisibility(clazz, clazz.kind.name)
             .name(clazz.getName, clazz.getDri)
             .generics(clazz)
 
-        val temp2 = ext.constructor.toSeq.foldLeft(temp){ (bdr, elem) =>
+        val withGenerics = ext.constructor.toSeq.foldLeft(prefixes){ (bdr, elem) =>
             bdr.functionParameters(elem)
         }
-        ext.parentTypes match
-            case Nil => temp2
-            case extendType :: withTypes =>
-                val temp3 = temp2
-                    .text(" extends ")
-                    .typeSignature(extendType)
-                withTypes.foldLeft(temp3){ (bdr, tpe) =>
-                    bdr.text(" with ").typeSignature(tpe)
-                }
+        parentsSignature(clazz, withGenerics)
 
     private def extensionSignature(extension: DFunction, builder: SignatureBuilder): SignatureBuilder =
         val grouped = extension.get(MethodExtension).extensionInfo.map(_.isGrouped).getOrElse(false)

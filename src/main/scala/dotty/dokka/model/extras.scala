@@ -47,15 +47,6 @@ object EnumExtension extends BaseKey[DClass, EnumExtension]
 
 case class ExtensionGroup(val extendedSymbol: DParameter, val extensions: List[DFunction])
 
-case class ClasslikeExtension(
-  parentTypes: List[Bound], 
-  constructor: Option[DFunction], 
-  companion: Option[DRI], 
-  extensions: List[ExtensionGroup],
-  inherited: InheritedDefinitions,
-  givens: List[Documentable]
-) extends ExtraProperty[DClasslike]:
-  override def getKey = ClasslikeExtension
 
 case class InheritedDefinitions(
   classlikes: List[DClasslike],
@@ -65,6 +56,15 @@ case class InheritedDefinitions(
   extensions: List[ExtensionGroup],
   givens: List[Documentable]
 )
+
+case class ClasslikeExtension(
+  constructor: Option[DFunction], 
+  companion: Option[DRI], 
+  extensions: List[ExtensionGroup],
+  inherited: InheritedDefinitions,
+  givens: List[Documentable]
+) extends ExtraProperty[DClasslike]:
+  override def getKey = ClasslikeExtension
 
 object ClasslikeExtension extends BaseKey[DClasslike, ClasslikeExtension]
 

@@ -50,7 +50,9 @@ enum Modifier(val name: String, val prefix: Boolean):
   case Erased extends Modifier("erased", true)
   case Opaque extends Modifier("opaque", true)
   case Open extends Modifier("open", true)
-  
+ 
+case class ExtensionGroup(on: String, tpe: Signature)  
+
 enum Kind(val name: String){
   case Class extends Kind("class")
   case Object extends Kind("object")
@@ -58,6 +60,7 @@ enum Kind(val name: String){
   case Enum extends Kind("enum")
   case EnumCase extends Kind("case")
   case Def extends Kind("def")
+  case Extension(in: ExtensionGroup) extends Kind("def")
   case Constructor extends Kind("def")
   case Var extends Kind("var")
   case Val extends Kind("val")
