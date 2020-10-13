@@ -4,6 +4,8 @@ import org.jetbrains.dokka.links._
 import org.jetbrains.dokka.model._
 import collection.JavaConverters._
 import dotty.dokka._
+import dotty.dokka.model.api.Visibility
+import dotty.dokka.model.api.VisibilityScope
 
 import scala.tasty.Reflection
 
@@ -66,7 +68,7 @@ class SymOps[R <: Reflection](val r: R):
     def topLevelEntryName(using ctx: Context): Option[String] = if (sym.isPackageDef) None else
       if (sym.owner.isPackageDef) Some(sym.name) else sym.owner.topLevelEntryName
 
-    def getVisibility(): ScalaVisibility =
+    def getVisibility(): Visibility =
       import VisibilityScope._
 
       def explicitScope(ownerType: Type): VisibilityScope =
@@ -83,12 +85,12 @@ class SymOps[R <: Reflection](val r: R):
 
       val visibilityFlags = (sym.flags.is(Flags.Private), sym.flags.is(Flags.Protected), sym.flags.is(Flags.Local))
       (sym.privateWithin, sym.protectedWithin, visibilityFlags) match
-        case (Some(owner), None, _) => ScalaVisibility.Private(explicitScope(owner))
-        case (None, Some(owner), _) => ScalaVisibility.Protected(explicitScope(owner))
-        case (None, None, (true, false, _)) => ScalaVisibility.Private(implicitScope(sym.owner))
-        case (None, None, (false, true, true)) => ScalaVisibility.Protected(ThisScope)
-        case (None, None, (false, true, false)) => ScalaVisibility.Protected(implicitScope(sym.owner))
-        case (None, None, (false, false, false)) => ScalaVisibility.Unrestricted
+        case (Some(owner), None, _) => Visibility.Private(explicitScope(owner))
+        case (None, Some(owner), _) => Visibility.Protected(explicitScope(owner))
+        case (None, None, (true, false, _)) => Visibility.Private(implicitScope(sym.owner))
+        case (None, None, (false, true, true)) => Visibility.Protected(ThisScope)
+        case (None, None, (false, true, false)) => Visibility.Protected(implicitScope(sym.owner))
+        case (None, None, (false, false, false)) => Visibility.Unrestricted
         case _ => throw new Exception(s"Visibility for symbol $sym cannot be determined")
 
     def getModifier(): ScalaModifier =
@@ -120,8 +122,8 @@ class SymOps[R <: Reflection](val r: R):
       import VisibilityScope._
 
       getVisibility() match
-        case ScalaVisibility.Private(_) => true
-        case ScalaVisibility.Protected(ThisScope | ImplicitModuleScope | _: ExplicitModuleScope) => true
+        case Visibility.Private(_) => true
+        case Visibility.Protected(ThisScope | ImplicitModuleScope | _: ExplicitModuleScope) => true
         case _ => false
 
     def shouldDocumentClasslike: Boolean = !isHiddenByVisibility

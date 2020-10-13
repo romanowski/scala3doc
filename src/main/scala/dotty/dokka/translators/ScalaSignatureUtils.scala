@@ -7,6 +7,7 @@ import org.jetbrains.dokka.model._
 import org.jetbrains.dokka.model.properties.WithExtraProperties
 import org.jetbrains.dokka.pages._
 import collection.JavaConverters._
+import dotty.dokka.model.api.visibility
 
 type InlineContent = String | (String, DRI)
 
@@ -81,7 +82,7 @@ trait SignatureBuilder extends ScalaSignatureUtils {
                 addParameterName(name).text(value)
         }
 
-        def modifiersAndVisibility(t: WithAbstraction with WithVisibility with WithExtraProperties[_], kind: String) =
+        def modifiersAndVisibility(t: Documentable with WithAbstraction with WithVisibility with WithExtraProperties[_], kind: String) =
             import org.jetbrains.dokka.model.properties._
             val extras = t.getExtra.getMap()
             val additionalModifiers =
@@ -94,10 +95,6 @@ trait SignatureBuilder extends ScalaSignatureUtils {
                 .map(modifiers => modifiers.toSeq.toSignatureString())
                 .getOrElse("")
 
-            val visibilityModifier =
-                val visibility = t.getVisibility.defaultValue.asInstanceOf[ScalaVisibility]
-                visibilityToString(visibility)
-            
             val suffixes = additionalModifiers
                 .map(_.filter(!_.prefix).map(_.getName))
                 .map(modifiers => modifiers.toSeq.toSignatureString())
@@ -107,7 +104,7 @@ trait SignatureBuilder extends ScalaSignatureUtils {
             text(
                 Seq(
                     prefixes.trim,
-                    visibilityModifier, 
+                    t.visibility.asSignature, 
                     t.getModifier.defaultValue.getName,
                     suffixes.trim
                 ).toSignatureString()
@@ -165,22 +162,3 @@ trait ScalaSignatureUtils:
         case e: WithExtraProperties[T] => e.get(AnnotationsInfo).annotations
         case _ => List.empty
     }).filterNot(annotation => ignoreRules.exists(ignoreFun => ignoreFun(annotation)))
-        
-
-            
-    def visibilityToString(visibility: ScalaVisibility) = visibility match {
-        case ScalaVisibility.Unrestricted => ""
-        case ScalaVisibility.Protected(scope) => s"protected${visibilityScopeToString(scope)}"
-        case ScalaVisibility.Private(scope) => s"private${visibilityScopeToString(scope)}"
-    }
-
-    def visibilityScopeToString(scope: VisibilityScope) = 
-        import VisibilityScope._
-
-        scope match
-            case ImplicitTypeScope | ImplicitModuleScope => ""
-            case ExplicitTypeScope(name) => s"[$name]"
-            case ExplicitModuleScope(name) => s"[$name]"
-            case ThisScope => "[this]"
-
-    

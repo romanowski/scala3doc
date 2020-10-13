@@ -18,6 +18,18 @@ enum Visibility(val name: String):
   case Protected(scope: VisibilityScope) extends Visibility("protected")
   case Private(scope: VisibilityScope) extends Visibility("private")
 
+  def asSignature = this match
+    case Unrestricted => ""
+    case Protected(scope) => s"protected${visibilityScopeToString(scope)}"
+    case Private(scope) => s"private${visibilityScopeToString(scope)}"
+
+
+  private def visibilityScopeToString(scope: VisibilityScope) = scope match
+    case VisibilityScope.ImplicitTypeScope | VisibilityScope.ImplicitModuleScope => ""
+    case VisibilityScope.ExplicitTypeScope(name) => s"[$name]"
+    case VisibilityScope.ExplicitModuleScope(name) => s"[$name]"
+    case VisibilityScope.ThisScope => "[this]"
+
 enum VisibilityScope:
   case ImplicitTypeScope // private/protected inside a class or a trait
   case ImplicitModuleScope // private/protected inside a package or an object
@@ -49,6 +61,8 @@ enum Kind(val name: String){
   case Val extends Kind("val")
   case Type extends Kind("Type")
   case Given extends Kind("Given")
+
+  case Uknown extends Kind("Unknown")
 }
 
 enum Origin:
@@ -70,14 +84,14 @@ object Annotation:
 type Signature = Seq[String | (String, DRI)]
 
 extension (member: Documentable with WithExtraProperties[_]):
-  def visibilty: Visibility = DocumentableExtension.getFrom(member).fold(Visibility.Unrestricted)(_.visibilty)
-  def signature: Signature = DocumentableExtension.getFrom(member).fold(Nil)(_.signature)
-  def modifiers: Seq[dotty.dokka.model.api.Modifier] = DocumentableExtension.getFrom(member).fold(Nil)(_.modifiers)
-  def kind: Kind = DocumentableExtension.getFrom(member).fold(Kind.Def)(_.kind) // throw exception?
-  def origin: Origin =  DocumentableExtension.getFrom(member).fold(Origin.DefinedWithin)(_.origin)
-  def annotations: List[Annotation] = DocumentableExtension.getFrom(member).fold(Nil)(_.annotations) 
+  def visibility: Visibility = MemberExtension.getFrom(member).fold(Visibility.Unrestricted)(_.visibilty)
+  def signature: Signature = MemberExtension.getFrom(member).fold(Nil)(_.signature)
+  def modifiers: Seq[dotty.dokka.model.api.Modifier] = MemberExtension.getFrom(member).fold(Nil)(_.modifiers)
+  def kind: Kind = MemberExtension.getFrom(member).fold(Kind.Uknown)(_.kind)
+  def origin: Origin =  MemberExtension.getFrom(member).fold(Origin.DefinedWithin)(_.origin)
+  def annotations: List[Annotation] = MemberExtension.getFrom(member).fold(Nil)(_.annotations) 
 
 extension (classLike: DClass):
-  def allMembers: Seq[Documentable] = ClasslikeExtension.getFrom(classLike).fold(Nil)(_.members)
-  def parents: List[String | (String, DRI)] = ClasslikeExtension.getFrom(classLike).fold(Nil)(_.parents)
-  def knownChildren: List[(String, DRI)] = ClasslikeExtension.getFrom(classLike).fold(Nil)(_.knownChildren)
+  def allMembers: Seq[Documentable] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.members)
+  def parents: List[String | (String, DRI)] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.parents)
+  def knownChildren: List[(String, DRI)] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.knownChildren)

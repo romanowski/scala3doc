@@ -19,27 +19,27 @@ import java.util.{List => JList, Set => JSet}
 
 import dokka.java.api.SourceSetWrapper
 
-private [model] case class DocumentableExtension(
+private [model] case class MemberExtension(
   visibilty: Visibility,
-  signature: Signature,
-  modifiers: Seq[dotty.dokka.model.api.Modifier],
-  kind: Kind,
+  signature: Signature = Nil,
+  modifiers: Seq[dotty.dokka.model.api.Modifier] = Nil, // TODO remove default!
+  kind: Kind = Kind.Uknown,
   origin: Origin = Origin.DefinedWithin,
-  isEnumMember: Boolean,
-  val annotations: List[Annotation]
+  isEnumMember: Boolean = false,
+  val annotations: List[Annotation] = Nil
 ) extends ExtraProperty[Documentable]:
- override def getKey = DocumentableExtension
+ override def getKey = MemberExtension
 
-object DocumentableExtension extends BaseKey[Documentable, DocumentableExtension]  
+object MemberExtension extends BaseKey[Documentable, MemberExtension]
 
-case class ClasslikeExtension(
+case class CompositeMemberExtension(
   members : Seq[Member] = Nil,
   parents: List[String | (String, DRI)] = Nil,
   knownChildren: List[(String, DRI)] = Nil
 ) extends ExtraProperty[DClass]:
-  override def getKey = ClasslikeExtension
+  override def getKey = CompositeMemberExtension
 
-object ClasslikeExtension extends BaseKey[DClass, ClasslikeExtension]  
+object CompositeMemberExtension extends BaseKey[DClass, CompositeMemberExtension]  
 
 type Member = DClass
 
@@ -50,8 +50,8 @@ object Member:
     sourceSet: SourceSetWrapper,
     documentation: Option[DocumentationNode],
     source: DocumentableSource,
-    ext: DocumentableExtension,
-    classlike: Option[ClasslikeExtension]
+    ext: CompositeMemberExtension,
+    classlike: Option[CompositeMemberExtension]
   ) = 
     def inSourceSet[A](a:A) = Map(sourceSet.getSourceSet -> a).asJava
     new DClass(

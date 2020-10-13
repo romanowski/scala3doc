@@ -2,17 +2,18 @@ package dotty.dokka
 
 import org.jetbrains.dokka.transformers.documentation.DocumentableTransformer
 import org.jetbrains.dokka.model._
-import collection.JavaConverters
 import collection.JavaConverters._
 import org.jetbrains.dokka.plugability.DokkaContext
 import org.jetbrains.dokka.links.DRI
 import org.jetbrains.dokka.model.properties._
 
+import dotty.dokka.model._
+
 class InheritanceInformationTransformer(val ctx: DokkaContext) extends DocumentableTransformer{
     override def invoke(original: DModule, context: DokkaContext): DModule = {
         val supertypes = getSupertypes(original)
         val subtypes = getSubtypesMap(supertypes)
-        completeInheritanceInformation(original, subtypes)
+        completeInheritanceInformation(subtypes)(original)
     }
 
     private def getSupertypes(d: Documentable): List[(DRI, DRI)] = d match {
@@ -34,53 +35,22 @@ class InheritanceInformationTransformer(val ctx: DokkaContext) extends Documenta
             case (key, l) => (key, l.map(_(1)))
         }.toMap
 
-    private def completeInheritanceInformation[T <: Documentable](d: T, subtypes: Map[DRI, List[DRI]]): T = d match {
-        case m: DModule => m.copy(
-            m.getName,
-            m.getPackages.asScala.map(m => completeInheritanceInformation(m,subtypes)).asJava,
-            m.getDocumentation,
-            m.getExpectPresentInSet,
-            m.getSourceSets,
-            m.getExtra
-        ).asInstanceOf[T]
-        case p: DPackage => p.copy(
-            p.getDri,
-            p.getFunctions,
-            p.getProperties,
-            p.getClasslikes.asScala.map(c => completeInheritanceInformation(c, subtypes)).asJava,
-            p.getTypealiases,
-            p.getDocumentation,
-            p.getExpectPresentInSet,
-            p.getSourceSets,
-            p.getExtra
-        ).asInstanceOf[T]
+    private def completeInheritanceInformation[T <: Documentable](subtypes: Map[DRI, List[DRI]])(d: T): T = (d match {
+        case m: DModule => 
+            m.updatePackanges(_.map(completeInheritanceInformation(subtypes)))
+        
+        case p: DPackage => 
+            p.updateClasslikes(_.map(completeInheritanceInformation(subtypes)))
+        
         case c: DClass => 
             val newInheritanceInfo = InheritanceInfo(
                 c.get(InheritanceInfo).parents,
                 subtypes.get(c.getDri).getOrElse(List.empty)
             )
-            c.copy(
-                c.getDri,
-                c.getName,
-                c.getConstructors,
-                c.getFunctions,
-                c.getProperties,
-                c.getClasslikes.asScala.map(cl => completeInheritanceInformation(cl,subtypes)).asJava,
-                c.getSources,
-                c.getVisibility,
-                c.getCompanion,
-                c.getGenerics,
-                c.getSupertypes,
-                c.getDocumentation,
-                c.getExpectPresentInSet,
-                c.getModifier,
-                c.getSourceSets,
-                c.getExtra
-            ).withNewExtras(
-                modifyExtras(c.getExtra, newInheritanceInfo)
-            ).asInstanceOf[T]
+            c.updateClasslikes(_.map(completeInheritanceInformation(subtypes))).put(newInheritanceInfo)
+
         case other => other
-    }
+    }).asInstanceOf[T]
 
     private def modifyExtras(p: PropertyContainer[DClass], i: InheritanceInfo): PropertyContainer[DClass] = 
         val properties = p.getMap.asScala.toMap.filter( (key,value) => key != InheritanceInfo ).map((key, value) => value).asJavaCollection

@@ -19,8 +19,15 @@ import org.jetbrains.dokka.DokkaConfiguration$DokkaSourceSet
 import org.jetbrains.dokka.plugability._
 import kotlin.jvm.JvmClassMappingKt.getKotlinClass
 
-extension [T, V] (a: WithExtraProperties[T]):
+extension [T, V, E <: WithExtraProperties[T]] (a: E):
   def get(key: ExtraProperty.Key[_ >: T, V]): V = a.getExtra().getMap().get(key).asInstanceOf[V]
+
+  def put(value: ExtraProperty[_ >: T]): E = // TODO remove some of the InstanceOf
+    val properties = a.getExtra.getMap.asScala.toMap
+        // .filter( (key,value) => key != value.getKey ) // TODO eee?
+        .map((key, value) => value).asJavaCollection
+    val newExtra = PropertyContainer.Companion.empty addAll properties plus value
+    a.withNewExtras(newExtra.asInstanceOf[PropertyContainer[T]]).asInstanceOf[E]
 
 extension [V] (map: JMap[DokkaConfiguration$DokkaSourceSet, V]):
     def defaultValue: V = map.values.asScala.toSeq(0)
@@ -28,7 +35,7 @@ extension [V] (map: JMap[DokkaConfiguration$DokkaSourceSet, V]):
 extension (sourceSets: Set[DokkaConfiguration$DokkaSourceSet]):
     def toDisplay = sourceSets.map(DisplaySourceSet(_)).asJava
 
-class BaseKey[T, V] extends ExtraProperty.Key[T, V]:
+class   BaseKey[T, V] extends ExtraProperty.Key[T, V]:
   override def mergeStrategyFor(left: V, right: V): MergeStrategy[T] = 
     MergeStrategy.Remove.INSTANCE.asInstanceOf[MergeStrategy[T]]
 

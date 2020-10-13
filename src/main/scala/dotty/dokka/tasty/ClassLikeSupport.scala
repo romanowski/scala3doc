@@ -8,10 +8,14 @@ import collection.JavaConverters._
 import org.jetbrains.dokka.model.properties._
 import dotty.dokka._
 import org.jetbrains.dokka.base.transformers.documentables.CallableExtensions
+import dotty.dokka.model.api.Visibility
+import dotty.dokka.model.api.MemberExtension
 
 trait ClassLikeSupport:
   self: TastyParser =>
   import reflect._
+
+  private val placeholderVisibility = Map(sourceSet.getSourceSet -> KotlinVisibility.Public.INSTANCE).asJava
 
   object DClass:
     def apply[T >: DClass](classDef: ClassDef)(
@@ -23,7 +27,6 @@ trait ClassLikeSupport:
       fields: List[DProperty] = (classDef.getTypeDefs.map(parseTypeDef) ++ classDef.getValDefs.map(parseValDef(_))),
       nested: List[DClasslike] = classDef.getNestedClasslikes,
       sources: Map[DokkaConfiguration$DokkaSourceSet, DocumentableSource] = classDef.symbol.source,
-      visibility: Map[DokkaConfiguration$DokkaSourceSet, Visibility] = Map(sourceSet.getSourceSet -> (classDef.symbol.getVisibility())),
       generics: List[DTypeParameter] = classDef.getTypeParams.map(parseTypeArgument),
       supertypes: Map[DokkaConfiguration$DokkaSourceSet, List[TypeConstructorWithKind]] = Map.empty,
       documentation: Map[DokkaConfiguration$DokkaSourceSet, DocumentationNode] = classDef.symbol.documentation,
@@ -39,7 +42,7 @@ trait ClassLikeSupport:
           fields.asJava,
           nested.asJava,
           sources.asJava,
-          visibility.asJava,
+          placeholderVisibility,
           null,
           generics.asJava,
           supertypes.map{case (key,value) => (key, value.asJava)}.asJava,
@@ -61,6 +64,7 @@ trait ClassLikeSupport:
             .plus(InheritanceInfo(classDef.getSupertypes, List.empty))
             .plus(annotations)
             .plus(ImplicitConversions(classDef.getImplicitConversions))
+            .plus(MemberExtension(classDef.symbol.getVisibility()))
             .addAll(additionalExtras.asJava)
       )
     }
@@ -71,7 +75,6 @@ trait ClassLikeSupport:
       name: String = classDef.name,
       constructors: List[DFunction] = classDef.getConstructors.map(parseMethod(_)),
       sources: Map[DokkaConfiguration$DokkaSourceSet, DocumentableSource] = classDef.symbol.source,
-      visibility: Map[DokkaConfiguration$DokkaSourceSet, Visibility] = Map(sourceSet.getSourceSet -> (classDef.symbol.getVisibility())),
       generics: List[DTypeParameter] = classDef.getTypeParams.map(parseTypeArgument),
       supertypes: Map[DokkaConfiguration$DokkaSourceSet, List[TypeConstructorWithKind]] = Map.empty,
       documentation: Map[DokkaConfiguration$DokkaSourceSet, DocumentationNode] = classDef.symbol.documentation,
@@ -87,7 +90,7 @@ trait ClassLikeSupport:
           JList(),
           JList(),
           sources.asJava,
-          visibility.asJava,
+          placeholderVisibility,
           null,
           generics.asJava,
           supertypes.map{case (key,value) => (key, value.asJava)}.asJava,
@@ -107,6 +110,7 @@ trait ClassLikeSupport:
             ))
             .plus(AdditionalModifiers(sourceSet.asMap(classDef.symbol.getExtraModifiers().asJava)))
             .plus(annotations)
+            .plus(MemberExtension(classDef.symbol.getVisibility()))
             .addAll(additionalExtras.asJava)
       )
     }
@@ -410,7 +414,7 @@ trait ClassLikeSupport:
       /*documentation =*/ methodSymbol.documentation.asJava,
       /*expectPresentInSet =*/ null, // unused
       /*sources =*/ methodSymbol.source.asJava,
-      /*visibility =*/ sourceSet.asMap(methodSymbol.getVisibility()),
+      /*visibility =*/ placeholderVisibility,
       /*type =*/ method.returnTpt.dokkaType,
       /*generics =*/ genericTypes.map(parseTypeArgument).asJava,
       /*receiver =*/ null, // Not used
@@ -420,6 +424,7 @@ trait ClassLikeSupport:
         plus MethodExtension(paramLists.map(_.size), extInfo)
         plus AdditionalModifiers(sourceSet.asMap(methodSymbol.getExtraModifiers().asJava))
         plus(annotations)
+        plus(MemberExtension(methodSymbol.getVisibility()))
         addAll optionalExtras.asJava
     )
 
@@ -479,7 +484,7 @@ trait ClassLikeSupport:
       /*documentation =*/ typeDef.symbol.documentation.asJava,
       /*expectPresentInSet =*/ null, // unused
       /*sources =*/ typeDef.symbol.source.asJava,
-      /*visibility =*/ sourceSet.asMap(typeDef.symbol.getVisibility()),
+      /*visibility =*/ placeholderVisibility, 
       /*type =*/ tpeTree.dokkaType, // TODO this may be hard...
       /*receiver =*/ null, // Not used
       /*setter =*/ null,
@@ -490,6 +495,7 @@ trait ClassLikeSupport:
       PropertyContainer.Companion.empty()
         plus PropertyExtension("type", isAbstract)
         plus AdditionalModifiers(sourceSet.asMap(extraModifiers.asJava))
+        plus MemberExtension(typeDef.symbol.getVisibility())
         plus annotations
     )
 
@@ -509,7 +515,7 @@ trait ClassLikeSupport:
         /*documentation =*/ valDef.symbol.documentation.asJava,
         /*expectPresentInSet =*/ null, // unused
         /*sources =*/ valDef.symbol.source.asJava,
-        /*visibility =*/ sourceSet.asMap(valDef.symbol.getVisibility()),
+        /*visibility =*/ placeholderVisibility,
         /*type =*/ valDef.tpt.dokkaType,
         /*receiver =*/ null, // Not used
         /*setter =*/ null,
@@ -523,6 +529,7 @@ trait ClassLikeSupport:
             valDef.symbol.flags.is(Flags.Abstract))
           plus AdditionalModifiers(sourceSet.asMap(valDef.symbol.getExtraModifiers().asJava))
           plus annotations
+          plus MemberExtension(valDef.symbol.getVisibility())
           addAll optionalExtras.asJava
       )
   }
