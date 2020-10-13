@@ -8,6 +8,10 @@ import org.jetbrains.dokka.plugability.DokkaContext
 import org.jetbrains.dokka.links.DRI
 import org.jetbrains.dokka.model.properties._
 
+import dotty.dokka.model.api.kind
+import dotty.dokka.model.api.Kind
+
+
 class ImplicitMembersExtensionTransformer(ctx: DokkaContext) extends DocumentableTransformer:
     override def invoke(original: DModule, context: DokkaContext): DModule = 
         propagateImplicitConversionsAndExtensionMethods(original, classlikeMap(original))
@@ -94,7 +98,7 @@ class ImplicitMembersExtensionTransformer(ctx: DokkaContext) extends Documentabl
             val implicitMembers = ImplicitMembers(
                 implicits.flatMap( (conv, i) => i.getFunctions.asScala.toList.map(_ -> conv)).toMap,
                 implicits.flatMap( (conv, i) => i.get(ClasslikeExtension).inherited.methods.map(_ -> conv)).toMap,
-                implicits.flatMap( (conv, i) => i.getProperties.asScala.filter(_.get(PropertyExtension).kind != "type" ).toList.map(_ -> conv)).toMap,
+                implicits.flatMap( (conv, i) => i.getProperties.asScala.filter(_.kind != Kind.Type ).toList.map(_ -> conv)).toMap,
                 implicits.flatMap( (conv, i) => i.get(ClasslikeExtension).inherited.fields.map(_ -> conv)).toMap,
                 extensionMethods
             )

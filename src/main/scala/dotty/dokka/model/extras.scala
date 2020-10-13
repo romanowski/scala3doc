@@ -11,13 +11,10 @@ import org.jetbrains.dokka.model.doc._
 import org.jetbrains.dokka.model.properties._  
 import java.util.{List => JList, Set => JSet}
 
-
-
 case class IsGiven(givenInstance: Option[Bound]) extends ExtraProperty[Documentable]:
   override def getKey = IsGiven
 
 object IsGiven extends BaseKey[Documentable, IsGiven]
-
 
 
 case class ExtensionInformation(val isGrouped: Boolean)
@@ -27,14 +24,10 @@ case class MethodExtension(parametersListSizes: Seq[Int], extensionInfo: Option[
 
 object MethodExtension extends BaseKey[DFunction, MethodExtension]
 
-
-
 case class ParameterExtension(isExtendedSymbol: Boolean, isGrouped: Boolean) extends ExtraProperty[DParameter]:
   override def getKey = ParameterExtension
 
 object ParameterExtension extends BaseKey[DParameter, ParameterExtension]
-
-
 
 enum IsEnumEntry extends ExtraProperty[Documentable]:
   case Val
@@ -54,17 +47,9 @@ object EnumExtension extends BaseKey[DClass, EnumExtension]
 
 case class ExtensionGroup(val extendedSymbol: DParameter, val extensions: List[DFunction])
 
-enum Kind(val name: String){
-  case Class extends Kind("class")
-  case Object extends Kind("object")
-  case Trait extends Kind("trait")
-  case Enum extends Kind("enum")
-}
-
 case class ClasslikeExtension(
   parentTypes: List[Bound], 
   constructor: Option[DFunction], 
-  kind: Kind, 
   companion: Option[DRI], 
   extensions: List[ExtensionGroup],
   inherited: InheritedDefinitions,
@@ -128,11 +113,6 @@ enum OriginInfo extends ExtraProperty[Documentable]:
   override def getKey = OriginInfo
 
 object OriginInfo extends BaseKey[Documentable, OriginInfo]  
-
-case class PropertyExtension(kind: "val" | "var" | "type", isAbstract: Boolean) extends ExtraProperty[DProperty]:
-  override def getKey = PropertyExtension
-
-object PropertyExtension extends BaseKey[DProperty, PropertyExtension]
 
 case class AnnotationsInfo(val annotations: List[AnnotationsInfo.Annotation]) extends ExtraProperty[Documentable]:
     override def getKey = AnnotationsInfo

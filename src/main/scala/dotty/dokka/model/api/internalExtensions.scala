@@ -22,8 +22,8 @@ import dokka.java.api.SourceSetWrapper
 private [model] case class MemberExtension(
   visibilty: Visibility,
   modifiers: Seq[dotty.dokka.model.api.Modifier],
+  kind: Kind,  // = Kind.Uknown,
   signature: Signature = Nil, // TODO remove defaults!
-  kind: Kind = Kind.Uknown,
   origin: Origin = Origin.DefinedWithin,
   isEnumMember: Boolean = false,
   val annotations: List[Annotation] = Nil
@@ -31,8 +31,7 @@ private [model] case class MemberExtension(
  override def getKey = MemberExtension
 
 object MemberExtension extends BaseKey[Documentable, MemberExtension]:
-  val 
-  empty = MemberExtension(Visibility.Unrestricted, Nil)
+  val empty = MemberExtension(Visibility.Unrestricted, Nil, Kind.Uknown)
 
 case class CompositeMemberExtension(
   members : Seq[Member] = Nil,

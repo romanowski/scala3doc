@@ -16,6 +16,8 @@ import kotlin.jvm.functions.Function2
 import org.jetbrains.dokka.links.DRI
 import dotty.dokka.model.api.modifiers
 import dotty.dokka.model.api.Modifier
+import dotty.dokka.model.api.kind
+import dotty.dokka.model.api.Kind
 
 class ScalaSignatureProvider(contentConverter: CommentsToContentConverter, logger: DokkaLogger) extends SignatureProvider with ScalaSignatureUtils:
     private val default = new KotlinSignatureProvider(contentConverter, logger)
@@ -108,7 +110,7 @@ object ScalaSignatureProvider:
         val ext = clazz.get(ClasslikeExtension)
         val temp = builder
             .annotationsBlock(clazz)
-            .modifiersAndVisibility(clazz, ext.kind.name)
+            .modifiersAndVisibility(clazz, clazz.kind.name)
             .name(clazz.getName, clazz.getDri)
             .generics(clazz)
 
@@ -180,19 +182,20 @@ object ScalaSignatureProvider:
         
 
     private def propertySignature(property: DProperty, builder: SignatureBuilder): SignatureBuilder =
-        property.get(PropertyExtension).kind match
+        property.kind match
             case kind if property.get(IsGiven) != null => givenPropertySignature(property, builder)
-            case "type" => typeSignature(property, builder)
-            case other => fieldSignature(property, other, builder)
+            case tpe: Kind.Type => typeSignature(tpe, property, builder)
+            case other => fieldSignature(property, other.name, builder)
 
-    private def typeSignature(typeDef: DProperty, builder: SignatureBuilder): SignatureBuilder =
+
+    private def typeSignature(tpe: Kind.Type, typeDef: DProperty, builder: SignatureBuilder): SignatureBuilder =
         val bdr = builder
             .annotationsBlock(typeDef)
-            .modifiersAndVisibility(typeDef, "type")
+            .modifiersAndVisibility(typeDef, if tpe.opaque then "opaque type" else "type")
             .name(typeDef.getName, typeDef.getDri)
             .generics(typeDef)
-        if(!typeDef.modifiers.contains(Modifier.Opaque)){
-            (if !typeDef.get(PropertyExtension).isAbstract then bdr.text(" = ") else bdr)
+        if(!tpe.opaque){
+            (if tpe.concreate then bdr.text(" = ") else bdr)
                 .typeSignature(typeDef.getType)
         } else bdr
         

@@ -61,7 +61,7 @@ enum Kind(val name: String){
   case Constructor extends Kind("def")
   case Var extends Kind("var")
   case Val extends Kind("val")
-  case Type extends Kind("Type")
+  case Type(concreate: Boolean, opaque: Boolean) extends Kind("Type")
   case Given extends Kind("Given")
 
   case Uknown extends Kind("Unknown")

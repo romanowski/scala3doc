@@ -18,6 +18,8 @@ import org.jetbrains.dokka.base.resolvers.anchors._
 import org.jetbrains.dokka.links._
 import org.jetbrains.dokka.model.doc._
 import org.jetbrains.dokka.links.DRIKt.getParent
+import dotty.dokka.model.api.Kind
+import dotty.dokka.model.api.kind
 
 class ScalaPageCreator(
     commentsToContentConverter: CommentsToContentConverter,
@@ -62,7 +64,7 @@ class ScalaPageCreator(
 
         val ext = c.get(ClasslikeExtension)
 
-        val name = if ext.kind == dotty.dokka.Kind.Object && ext.companion.isDefined then c.getName + "$" else c.getName
+        val name = if c.kind == Kind.Object && ext.companion.isDefined then c.getName + "$" else c.getName
 
         val extensionPages = ext.extensions.flatMap(_.extensions)
             .map(pageForFunction(_))
@@ -316,8 +318,8 @@ class ScalaPageCreator(
                                 }
                                 .cell(sourceSets = d.getSourceSets.asScala.toSet){ b => b
                                     .driLink(
-                                        ext.kind match {
-                                            case dotty.dokka.Kind.Object => "class"
+                                        d.kind match {
+                                            case Kind.Object => "class"
                                             case _ => "object"
                                         },
                                         co
@@ -344,7 +346,7 @@ class ScalaPageCreator(
         }
 
         def contentForScope(s: Documentable & WithScope) = 
-            val (typeDefs, valDefs) = s.getProperties.asScala.toList.partition(_.get(PropertyExtension).kind == "type")
+            val (typeDefs, valDefs) = s.getProperties.asScala.toList.partition(_.kind == Kind.Type)
             val classes = s.getClasslikes.asScala.toList
             val inheritedDefinitions = s match {
                 case c: DClass => Some(c.get(ClasslikeExtension).inherited)

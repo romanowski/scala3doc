@@ -104,18 +104,17 @@ class SymOps[R <: Reflection](val r: R):
 
     // Order here determines order in documenation
     def getExtraModifiers(): Seq[Modifier] = Seq(
-        Flags.Abstract -> Modifier.Abstract,
         Flags.Final -> Modifier.Final,
-        Flags.Abstract -> Modifier.Abstract, 
         Flags.Sealed -> Modifier.Sealed,
         Flags.Erased -> Modifier.Erased,
+        Flags.Abstract -> Modifier.Abstract,
         Flags.Implicit -> Modifier.Implicit,
         Flags.Inline -> Modifier.Inline,
         Flags.Lazy -> Modifier.Lazy,
         Flags.Override -> Modifier.Override,
-        // sym.hackIsOpen)(Modifier.Open do we need open modifier?
-        Flags.Case -> Modifier.Sealed,
+        Flags.Case -> Modifier.Case,
         ).collect { case (flag, mod) if sym.flags.is(flag) => mod }
+          ++ (if(sym.hackIsOpen) Seq(Modifier.Open) else Nil)
 
     def isHiddenByVisibility: Boolean =
       import VisibilityScope._

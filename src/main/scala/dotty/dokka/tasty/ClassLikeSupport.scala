@@ -11,6 +11,8 @@ import org.jetbrains.dokka.base.transformers.documentables.CallableExtensions
 import dotty.dokka.model.api.Visibility
 import dotty.dokka.model.api.MemberExtension
 import dotty.dokka.model.api.Modifier
+import dotty.dokka.model.api.Kind
+
 
 trait ClassLikeSupport:
   self: TastyParser =>
@@ -56,7 +58,6 @@ trait ClassLikeSupport:
             .plus(ClasslikeExtension(
               classDef.getParents,
               classDef.getConstructorMethod,
-              kind,
               classDef.getCompanion,
               classDef.getExtensionGroups,
               classDef.getInheritedDefinitions,
@@ -65,7 +66,7 @@ trait ClassLikeSupport:
             .plus(InheritanceInfo(classDef.getSupertypes, List.empty))
             .plus(annotations)
             .plus(ImplicitConversions(classDef.getImplicitConversions))
-            .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers))
+            .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers, kind))
             .addAll(additionalExtras.asJava)
       )
 
@@ -102,14 +103,13 @@ trait ClassLikeSupport:
             .plus(ClasslikeExtension(
               classDef.getParents,
               classDef.getConstructorMethod,
-              kind,
               None,
               List.empty,
               null,
               List.empty
             ))
             .plus(annotations)
-            .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers))
+            .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers, kind))
             .addAll(additionalExtras.asJava)
       )
     }
@@ -354,14 +354,15 @@ trait ClassLikeSupport:
       paramPrefix: Symbol => String = _ => "",
       extInfo: Option[ExtensionInformation] = None,
       isGiven: Boolean = false,
-      isInherited: Boolean = false
+      isInherited: Boolean = false,
     ): DFunction =
     val annotations = AnnotationsInfo(methodSymbol.getAnnotations())
     val method = methodSymbol.tree.asInstanceOf[DefDef]
     val paramLists = if emptyParamsList then Nil else method.paramss
     val genericTypes = if (methodSymbol.isClassConstructor) Nil else method.typeParams
+    val isConstructor: Boolean = methodSymbol.isClassConstructor
     val name =
-      if methodSymbol.isClassConstructor then "this"
+      if isConstructor then "this"
       else if extInfo.isDefined then methodSymbol.name.stripPrefix("extension_")
       else if isGiven then methodSymbol.name.stripPrefix("given_")
       else methodSymbol.name
@@ -401,6 +402,8 @@ trait ClassLikeSupport:
         }
       ).flatten
 
+    val kind = if isConstructor then Kind.Constructor else Kind.Enum
+
     new DFunction(
       methodSymbol.dri,
       name,
@@ -418,7 +421,7 @@ trait ClassLikeSupport:
       PropertyContainer.Companion.empty()
         plus MethodExtension(paramLists.map(_.size), extInfo)
         plus(annotations)
-        plus(MemberExtension(methodSymbol.getVisibility(), methodSymbol.getExtraModifiers()))
+        plus(MemberExtension(methodSymbol.getVisibility(), methodSymbol.getExtraModifiers(), kind))
         addAll optionalExtras.asJava
     )
 
@@ -462,15 +465,12 @@ trait ClassLikeSupport:
       case _ => false
     }
 
-    val isAbstract = isTreeAbstract(typeDef.rhs)
-
-    val isTypeOpaque = typeDef.symbol.isOpaque
 
     val (generics, tpeTree) = typeDef.rhs match
       case LambdaTypeTree(params, body) => (params.map(parseTypeArgument), body)
       case tpe => (Nil, tpe)
 
-    val extraModifiers = Set(Option.when(isTypeOpaque)(Modifier.Opaque)).flatten
+    val kind = Kind.Type(!isTreeAbstract(typeDef.rhs), typeDef.symbol.isOpaque)
 
     new DProperty(
       typeDef.symbol.dri,
@@ -487,8 +487,7 @@ trait ClassLikeSupport:
       sourceSet.toSet(),
       /*generics =*/ generics.asJava, // TODO
       PropertyContainer.Companion.empty()
-        plus PropertyExtension("type", isAbstract)
-        plus MemberExtension(typeDef.symbol.getVisibility(), typeDef.symbol.getExtraModifiers() ++ extraModifiers)
+        plus MemberExtension(typeDef.symbol.getVisibility(), typeDef.symbol.getExtraModifiers(), kind)
         plus annotations
     )
 
@@ -502,6 +501,7 @@ trait ClassLikeSupport:
           .map(_.headOption)
           .flatten
       val optionalExtras = Seq(Option.when(isGiven)(IsGiven(givenInstance))).flatten
+      val kind = if valDef.symbol.flags.is(Flags.Mutable) then Kind.Var else Kind.Val
       new DProperty(
         valDef.symbol.dri,
         valDef.name,
@@ -517,11 +517,8 @@ trait ClassLikeSupport:
         sourceSet.toSet(),
         /*generics =*/ Nil.asJava,
         PropertyContainer.Companion.empty() plus
-          PropertyExtension(
-            if valDef.symbol.flags.is(Flags.Mutable) then "var" else "val",
-            valDef.symbol.flags.is(Flags.Abstract))
-          plus annotations
-          plus MemberExtension(valDef.symbol.getVisibility(), valDef.symbol.getExtraModifiers())
+          annotations
+          plus MemberExtension(valDef.symbol.getVisibility(), valDef.symbol.getExtraModifiers(), kind)
           addAll optionalExtras.asJava
       )
   }

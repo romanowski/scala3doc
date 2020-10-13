@@ -14,7 +14,6 @@ case class TastyDocumentableSource(val path: String, val lineNumber: Int) extend
     override def getPath = path
 }
 
-
 enum TableStyle extends org.jetbrains.dokka.pages.Style:
   case Borderless
   case DescriptionList
