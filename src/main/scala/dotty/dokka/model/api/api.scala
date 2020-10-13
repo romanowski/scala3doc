@@ -37,8 +37,10 @@ enum VisibilityScope:
   case ExplicitModuleScope(moduleName: String) // private[X]/protected[X] inside a package or an object
   case ThisScope // private[this]/protected[this]
 
-// TODO probably we can remove prefix
 enum Modifier(val name: String, val prefix: Boolean):
+  case Abstract extends Modifier("abstract", true)
+  case Final extends Modifier("final", true)
+  case Empty extends Modifier("", true)
   case Sealed extends Modifier("sealed", true)
   case Case extends Modifier("case", false)
   case Implicit extends Modifier("implicit", true)

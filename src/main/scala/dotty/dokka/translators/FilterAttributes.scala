@@ -16,6 +16,7 @@ import org.jetbrains.dokka.links._
 import org.jetbrains.dokka.model.properties.PropertyContainer
 import org.jetbrains.dokka.model.doc._
 import dotty.dokka.model.api.visibility
+import dotty.dokka.model.api.modifiers
 
 import dotty.dokka._
 
@@ -24,18 +25,9 @@ object FilterAttributes:
     val base = visibity(documentable) ++ visibity(documentable) ++ origin(documentable) ++ keywords(documentable)
     base.filter(_._2.nonEmpty)
 
-  private def keywords(documentable: Documentable): Map[String, String] =  documentable match 
+  private def keywords(documentable: Documentable): Map[String, String] = documentable match 
     case v: WithExtraProperties[_] with WithAbstraction =>
-      val k = AdditionalModifiers.Companion.asInstanceOf[org.jetbrains.dokka.model.properties.ExtraProperty.Key[_, AdditionalModifiers]]
-
-      val additionalKeywords = getFromExtra[AdditionalModifiers](v, k).toSeq.flatMap(extra =>
-        extra.getContent().defaultValue.asScala.collect { case e: ScalaOnlyModifiers => e.name }
-      )
-      val mods = v.getModifier.defaultValue match 
-        case v: ScalaModifier => Seq(v.name)
-        case _ => Nil
-
-      Map("keywords" -> (additionalKeywords ++ mods).filter(_.nonEmpty).mkString(","))  
+      Map("keywords" -> v.modifiers.map(_.name).mkString(","))  
     case _ =>
       Map.empty
 

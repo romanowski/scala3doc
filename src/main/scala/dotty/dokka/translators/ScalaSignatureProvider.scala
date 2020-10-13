@@ -14,6 +14,8 @@ import dokka.java.api._
 import java.util.function.Consumer
 import kotlin.jvm.functions.Function2
 import org.jetbrains.dokka.links.DRI
+import dotty.dokka.model.api.modifiers
+import dotty.dokka.model.api.Modifier
 
 class ScalaSignatureProvider(contentConverter: CommentsToContentConverter, logger: DokkaLogger) extends SignatureProvider with ScalaSignatureUtils:
     private val default = new KotlinSignatureProvider(contentConverter, logger)
@@ -184,14 +186,12 @@ object ScalaSignatureProvider:
             case other => fieldSignature(property, other, builder)
 
     private def typeSignature(typeDef: DProperty, builder: SignatureBuilder): SignatureBuilder =
-        val modifiers = typeDef.getExtra.getMap.get(AdditionalModifiers.Companion).asInstanceOf[AdditionalModifiers]
-        val isOpaque = modifiers != null && modifiers.getContent.defaultValue.asScala.contains(ScalaOnlyModifiers.Opaque)
         val bdr = builder
             .annotationsBlock(typeDef)
             .modifiersAndVisibility(typeDef, "type")
             .name(typeDef.getName, typeDef.getDri)
             .generics(typeDef)
-        if(!isOpaque){
+        if(!typeDef.modifiers.contains(Modifier.Opaque)){
             (if !typeDef.get(PropertyExtension).isAbstract then bdr.text(" = ") else bdr)
                 .typeSignature(typeDef.getType)
         } else bdr

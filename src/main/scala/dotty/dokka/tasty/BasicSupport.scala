@@ -6,6 +6,7 @@ import collection.JavaConverters._
 import dotty.dokka._
 import dotty.dokka.model.api.Visibility
 import dotty.dokka.model.api.VisibilityScope
+import dotty.dokka.model.api.Modifier
 
 import scala.tasty.Reflection
 
@@ -93,11 +94,6 @@ class SymOps[R <: Reflection](val r: R):
         case (None, None, (false, false, false)) => Visibility.Unrestricted
         case _ => throw new Exception(s"Visibility for symbol $sym cannot be determined")
 
-    def getModifier(): ScalaModifier =
-      if (sym.flags.is(Flags.Abstract)) ScalaModifier.Abstract
-      else if (sym.flags.is(Flags.Final)) ScalaModifier.Final
-      else ScalaModifier.Empty
-
     // TODO: #49 Remove it after TASTY-Reflect release with published flag Extension
     def hackIsOpen: Boolean = {
       import dotty.tools.dotc
@@ -106,17 +102,20 @@ class SymOps[R <: Reflection](val r: R):
       symbol.is(dotc.core.Flags.Open)
     }
 
-    def getExtraModifiers(): Set[ScalaOnlyModifiers] =
-      Set(
-        Option.when(sym.flags.is(Flags.Sealed))(ScalaOnlyModifiers.Sealed),
-        Option.when(sym.flags.is(Flags.Erased))(ScalaOnlyModifiers.Erased),
-        Option.when(sym.flags.is(Flags.Implicit))(ScalaOnlyModifiers.Implicit),
-        Option.when(sym.flags.is(Flags.Inline))(ScalaOnlyModifiers.Inline),
-        Option.when(sym.flags.is(Flags.Lazy))(ScalaOnlyModifiers.Lazy),
-        Option.when(sym.flags.is(Flags.Override))(ScalaOnlyModifiers.Override),
-        Option.when(sym.flags.is(Flags.Case))(ScalaOnlyModifiers.Case),
-        Option.when(sym.hackIsOpen)(ScalaOnlyModifiers.Open)
-      ).flatten
+    // Order here determines order in documenation
+    def getExtraModifiers(): Seq[Modifier] = Seq(
+        Flags.Abstract -> Modifier.Abstract,
+        Flags.Final -> Modifier.Final,
+        Flags.Abstract -> Modifier.Abstract, 
+        Flags.Sealed -> Modifier.Sealed,
+        Flags.Erased -> Modifier.Erased,
+        Flags.Implicit -> Modifier.Implicit,
+        Flags.Inline -> Modifier.Inline,
+        Flags.Lazy -> Modifier.Lazy,
+        Flags.Override -> Modifier.Override,
+        // sym.hackIsOpen)(Modifier.Open do we need open modifier?
+        Flags.Case -> Modifier.Sealed,
+        ).collect { case (flag, mod) if sym.flags.is(flag) => mod }
 
     def isHiddenByVisibility: Boolean =
       import VisibilityScope._

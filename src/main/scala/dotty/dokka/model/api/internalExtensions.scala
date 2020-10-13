@@ -21,8 +21,8 @@ import dokka.java.api.SourceSetWrapper
 
 private [model] case class MemberExtension(
   visibilty: Visibility,
-  signature: Signature = Nil,
-  modifiers: Seq[dotty.dokka.model.api.Modifier] = Nil, // TODO remove default!
+  modifiers: Seq[dotty.dokka.model.api.Modifier],
+  signature: Signature = Nil, // TODO remove defaults!
   kind: Kind = Kind.Uknown,
   origin: Origin = Origin.DefinedWithin,
   isEnumMember: Boolean = false,
@@ -30,7 +30,9 @@ private [model] case class MemberExtension(
 ) extends ExtraProperty[Documentable]:
  override def getKey = MemberExtension
 
-object MemberExtension extends BaseKey[Documentable, MemberExtension]
+object MemberExtension extends BaseKey[Documentable, MemberExtension]:
+  val 
+  empty = MemberExtension(Visibility.Unrestricted, Nil)
 
 case class CompositeMemberExtension(
   members : Seq[Member] = Nil,
@@ -72,3 +74,8 @@ object Member:
           Set.empty.asJava, // TODO add sourceSet !
           classlike.foldLeft(PropertyContainer.Companion.empty() plus ext)(_ plus _)
       )
+
+extension [E <: Documentable with WithExtraProperties[E]](member: E):
+  def copy(modifiers: Seq[Modifier]) =
+    val ext = MemberExtension.getFrom(member).getOrElse(MemberExtension.empty).copy(modifiers = modifiers)
+    member.put(ext)

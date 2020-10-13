@@ -8,6 +8,8 @@ import org.jetbrains.dokka.model.properties.WithExtraProperties
 import org.jetbrains.dokka.pages._
 import collection.JavaConverters._
 import dotty.dokka.model.api.visibility
+import dotty.dokka.model.api.modifiers
+import dotty.dokka.model.api.annotations
 
 type InlineContent = String | (String, DRI)
 
@@ -85,30 +87,10 @@ trait SignatureBuilder extends ScalaSignatureUtils {
         def modifiersAndVisibility(t: Documentable with WithAbstraction with WithVisibility with WithExtraProperties[_], kind: String) =
             import org.jetbrains.dokka.model.properties._
             val extras = t.getExtra.getMap()
-            val additionalModifiers =
-              Option(extras.get(AdditionalModifiers.Companion).asInstanceOf[AdditionalModifiers])
-                .map(_.getContent)
-                .map(content => content.defaultValue.asScala.collect{case s: ScalaOnlyModifiers => s})
-                
-            val prefixes = additionalModifiers
-                .map(_.filter(_.prefix).map(_.getName))
-                .map(modifiers => modifiers.toSeq.toSignatureString())
-                .getOrElse("")
+            val (prefixMods, suffixMods) = t.modifiers.partition(_.prefix)
+            val all = prefixMods.map(_.name) ++ Seq(t.visibility.asSignature) ++ suffixMods.map(_.name)
 
-            val suffixes = additionalModifiers
-                .map(_.filter(!_.prefix).map(_.getName))
-                .map(modifiers => modifiers.toSeq.toSignatureString())
-                .getOrElse("")
-
-
-            text(
-                Seq(
-                    prefixes.trim,
-                    t.visibility.asSignature, 
-                    t.getModifier.defaultValue.getName,
-                    suffixes.trim
-                ).toSignatureString()
-            ).text(kind + " ")
+            text(all.toSignatureString()).text(kind + " ")
 
         def typeSignature(b: Projection): SignatureBuilder = b match {
             case tc: TypeConstructor =>
@@ -159,6 +141,6 @@ trait ScalaSignatureUtils:
         tokens.filter(_.trim.nonEmpty).mkString(""," "," ")
 
     extension [T <: Documentable] (d: T) def annotations() = (d match {
-        case e: WithExtraProperties[T] => e.get(AnnotationsInfo).annotations
+        case e: Documentable with WithExtraProperties[T] => List.empty // TODO :  e.annotations
         case _ => List.empty
     }).filterNot(annotation => ignoreRules.exists(ignoreFun => ignoreFun(annotation)))

@@ -14,21 +14,6 @@ case class TastyDocumentableSource(val path: String, val lineNumber: Int) extend
     override def getPath = path
 }
 
-enum ScalaOnlyModifiers(val name: String, val prefix: Boolean) extends ExtraModifiers(name, null):
-  case Sealed extends ScalaOnlyModifiers("sealed", true)
-  case Case extends ScalaOnlyModifiers("case", false)
-  case Implicit extends ScalaOnlyModifiers("implicit", true)
-  case Inline extends ScalaOnlyModifiers("inline", true)
-  case Lazy extends ScalaOnlyModifiers("lazy", true)
-  case Override extends ScalaOnlyModifiers("override", true)
-  case Erased extends ScalaOnlyModifiers("erased", true)
-  case Opaque extends ScalaOnlyModifiers("opaque", true)
-  case Open extends ScalaOnlyModifiers("open", true)
-    
-enum ScalaModifier(val name: String) extends org.jetbrains.dokka.model.Modifier(name, null):
-  case Abstract extends ScalaModifier("abstract")
-  case Final extends ScalaModifier("final")
-  case Empty extends ScalaModifier("")
 
 enum TableStyle extends org.jetbrains.dokka.pages.Style:
   case Borderless
