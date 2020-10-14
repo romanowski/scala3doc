@@ -41,52 +41,50 @@ case class CompositeMemberExtension(
   members : Seq[Member] = Nil,
   parents: Seq[LinkToType] = Nil,
   knownChildren: Seq[Link] = Nil
-) extends ExtraProperty[DClass]:
+) extends ExtraProperty[Documentable]:
   override def getKey = CompositeMemberExtension
 
-object CompositeMemberExtension extends BaseKey[DClass, CompositeMemberExtension]:
+object CompositeMemberExtension extends BaseKey[Documentable, CompositeMemberExtension]:
   val empty = CompositeMemberExtension()
 
-type Member = DClass
-
-object Member:
-  def apply(
-    dri: DRI,
-    name: String,
-    sourceSet: SourceSetWrapper,
-    documentation: Option[DocumentationNode],
-    source: DocumentableSource,
-    ext: CompositeMemberExtension,
-    classlike: Option[CompositeMemberExtension]
-  ) = 
-    def inSourceSet[A](a:A) = Map(sourceSet.getSourceSet -> a).asJava
-    new DClass(
-          dri,
-          name,
-          Nil.asJava,
-          Nil.asJava,
-          Nil.asJava,
-          classlike.fold(Nil)(_.members).filter(_.origin == Origin.DefinedWithin).asJava,
-          inSourceSet(source),
-          Map.empty.asJava,
-          null,
-          List.empty.asJava,
-          Map.empty.asJava,
-          documentation.fold(Map.empty.asJava)(inSourceSet),
-          null,
-          Map.empty.asJava,
-          Set.empty.asJava, // TODO add sourceSet !
-          classlike.foldLeft(PropertyContainer.Companion.empty() plus ext)(_ plus _)
-      )
+// object Member:
+//   def apply(
+//     dri: DRI,
+//     name: String,
+//     sourceSet: SourceSetWrapper,
+//     documentation: Option[DocumentationNode],
+//     source: DocumentableSource,
+//     ext: CompositeMemberExtension,
+//     classlike: Option[CompositeMemberExtension]
+//   ) = 
+//     def inSourceSet[A](a:A) = Map(sourceSet.getSourceSet -> a).asJava
+//     new DClass(
+//           dri,
+//           name,
+//           Nil.asJava,
+//           Nil.asJava,
+//           Nil.asJava,
+//           classlike.fold(Nil)(_.members).filter(_.origin == Origin.DefinedWithin).asJava,
+//           inSourceSet(source),
+//           Map.empty.asJava,
+//           null,
+//           List.empty.asJava,
+//           Map.empty.asJava,
+//           documentation.fold(Map.empty.asJava)(inSourceSet),
+//           null,
+//           Map.empty.asJava,
+//           Set.empty.asJava, // TODO add sourceSet !
+//           classlike.foldLeft(PropertyContainer.Companion.empty() plus ext)(_ plus _)
+//       )
 
 extension [E <: Documentable with WithExtraProperties[E]](member: E):
   def copy(modifiers: Seq[Modifier]) =
     val ext = MemberExtension.getFrom(member).getOrElse(MemberExtension.empty).copy(modifiers = modifiers)
     member.put(ext)
   
-  // def withOrigin(origin: Origin)
-  //   val ext = MemberExtension.getFrom(member).getOrElse(MemberExtension.empty).copy(origin = origin)
-  //   member.put(ext)
+  def withOrigin(origin: Origin) =
+    val ext = MemberExtension.getFrom(member).getOrElse(MemberExtension.empty).copy(origin = origin)
+    member.put(ext)
 
 extension (bound: Bound):
   def asSignature: Signature = bound match 

@@ -9,6 +9,7 @@ import org.jetbrains.dokka.model.doc._
 import org.jetbrains.dokka.model.properties._  
 import org.jetbrains.dokka.pages._
 import java.util.{List => JList, Set => JSet}
+import dotty.dokka.model.api.Signature
 
 case class TastyDocumentableSource(val path: String, val lineNumber: Int) extends DocumentableSource {
     override def getPath = path
@@ -82,7 +83,7 @@ case class DocumentableElement(
   override def newInstance(params: ContentNodeParams) = copy(params = params)
 
 case class DocumentableElementGroup(
-  header: Seq[String | (String, DRI)],
+  header: Signature,
   elements: Seq[DocumentableElement],
   params: ContentNodeParams
 ) extends ScalaContentNode(params):

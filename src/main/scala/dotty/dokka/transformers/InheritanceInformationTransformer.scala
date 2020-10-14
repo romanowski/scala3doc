@@ -21,7 +21,7 @@ class InheritanceInformationTransformer(val ctx: DokkaContext) extends Documenta
         case m: DModule => m.getPackages.asScala.toList.flatMap(p => getSupertypes(p))
         case p: DPackage => p.getClasslikes.asScala.toList.flatMap(c => getSupertypes(c))
         case c: DClass => 
-            val selfLink = Link(c.name, c.dri)
+            val selfLink = Link(c.getName, c.getDri)
             c.parents.map(_._2 -> selfLink) ++ c.getClasslikes.asScala.flatMap(getSupertypes)
         case other => List.empty
     }
@@ -35,7 +35,7 @@ class InheritanceInformationTransformer(val ctx: DokkaContext) extends Documenta
         
         case c: DClass => 
             val original = CompositeMemberExtension.getFrom(c).getOrElse(CompositeMemberExtension.empty)
-            val newInheritanceInfo = original.copy(knownChildren = subtypes.get(c.dri).getOrElse(Nil))
+            val newInheritanceInfo = original.copy(knownChildren = subtypes.get(c.getDri).getOrElse(Nil))
             c.updateClasslikes(_.map(completeInheritanceInformation(subtypes))).put(newInheritanceInfo)
         case other => other
     }).asInstanceOf[T]

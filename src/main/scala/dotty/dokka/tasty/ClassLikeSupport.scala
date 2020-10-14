@@ -17,7 +17,10 @@ import dotty.dokka.model.api.asSignature
 import dotty.dokka.model.api.Link
 import dotty.dokka.model.api.LinkToType
 import dotty.dokka.model.api.asSignature
-
+import dotty.dokka.model.api.Member
+import dotty.dokka.model.api.ExtensionTarget
+import dotty.dokka.model.api.Origin
+import dotty.dokka.model.api.withOrigin
 
 trait ClassLikeSupport:
   self: TastyParser =>
@@ -43,6 +46,8 @@ trait ClassLikeSupport:
       additionalExtras: Seq[ExtraProperty[DClass]] = Seq.empty
     ): DClass = 
       val supertypes = classDef.getParents.map(tree => LinkToType(tree.dokkaType.asSignature, tree.symbol.dri))
+      val members = classDef.getExtensions
+
       new DClass(
           dri,
           name,
@@ -63,11 +68,10 @@ trait ClassLikeSupport:
             .plus(ClasslikeExtension(
               classDef.getConstructorMethod,
               classDef.getCompanion,
-              classDef.getExtensionGroups,
               classDef.getInheritedDefinitions,
               classDef.getGivenMethods ++ classDef.getGivenFields
             ))
-            .plus(CompositeMemberExtension(Nil, supertypes, Nil))
+            .plus(CompositeMemberExtension(members.asInstanceOf[Seq[Member]], supertypes, Nil)) // TODO remove asInstanceOf
             .plus(ImplicitConversions(classDef.getImplicitConversions))
             .plus(MemberExtension(classDef.symbol.getVisibility(), modifiers, kind, classDef.symbol.getAnnotations()))
             .addAll(additionalExtras.asJava)
@@ -104,7 +108,6 @@ trait ClassLikeSupport:
           .plus(ClasslikeExtension(
             classDef.getConstructorMethod,
             None,
-            List.empty,
             null,
             List.empty
           ))
@@ -122,24 +125,19 @@ trait ClassLikeSupport:
         .filter(s => s.maybeOwner != defn.ObjectClass && s.maybeOwner != defn.AnyClass)
         .map(_.tree)
 
-    private def extractExtensionGroups(functions: List[Symbol]) = {
-      case class ExtensionRepr(arg: ValDef, method: Symbol)
-      val extensions = functions
-        .filterNot(_.isHiddenByVisibility)
-        .filterNot(_.isSyntheticFunc)
-        .filter(_.isExtensionMethod)
-        .map(m => ExtensionRepr(m.extendedSymbol.get, m))
-      val groupped = extensions.groupBy( e => e.arg.pos)
-      groupped.map {
-        case (pos, extensions) => {
-          val isGroupped = extensions.size > 1
-          val dMethods = extensions.map( (arg, m) => parseMethod(m, extInfo = Some(ExtensionInformation(isGroupped))))
-          ExtensionGroup(parseArgument(extensions(0).arg, _ => "", isExtendedSymbol = true, isGroupped), dMethods)
-        }
-      }.toList
-    }
 
-    def getExtensionGroups: List[ExtensionGroup] = extractExtensionGroups(c.symbol.classMethods)
+    def getExtensions: Seq[DFunction] = 
+      val inherited = c.getNonTrivialInheritedMemberTrees
+        .collect { case dd: DefDef if !dd.symbol.isClassConstructor => dd.symbol }
+        .filterNot(s => s.isSuperBridgeMethod || s.isDefaultHelperMethod)
+
+      def extractExtensionFunctions(f: Symbol): Option[DFunction] = 
+        f.extendedSymbol
+          .filter(_ => !f.isHiddenByVisibility && !f.isSyntheticFunc && f.isExtensionMethod)
+          .map(extSym => parseMethod(f, kind = Kind.Extension(ExtensionTarget(extSym.symbol.name, extSym.dokkaType.asSignature))))  
+    
+      c.symbol.classMethods.flatMap(extractExtensionFunctions) ++ 
+        inherited.flatMap(s => extractExtensionFunctions(s).map(_.withOrigin(Origin.InheritedFrom(s.owner.name, s.owner.dri))))
 
     def getImplicitConversions: List[ImplicitConversion] =
       val conversionSymbol = Symbol.requiredClass("scala.Conversion")
@@ -215,7 +213,6 @@ trait ClassLikeSupport:
         extractTypeDefs(inheritedTypeDefs).map(parseTypeDef(_)),
         extractMethods(inheritedDefDefs).map(parseMethod(_)),
         extractValDefs(inheritedValDefs).map(parseValDef(_)),
-        extractExtensionGroups(inheritedDefDefs),
         extractGivenFields(inheritedValDefs) ++ extractGivenMethods(inheritedDefDefs)
       )
     }
@@ -351,6 +348,7 @@ trait ClassLikeSupport:
       emptyParamsList: Boolean = false,
       paramPrefix: Symbol => String = _ => "",
       extInfo: Option[ExtensionInformation] = None,
+      kind: Kind = Kind.Def,
       isGiven: Boolean = false,
       isInherited: Boolean = false,
     ): DFunction =

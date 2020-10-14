@@ -15,11 +15,7 @@ import org.jetbrains.dokka.base.resolvers.anchors._
 import org.jetbrains.dokka.links._
 import org.jetbrains.dokka.model.properties.PropertyContainer
 import org.jetbrains.dokka.model.doc._
-import dotty.dokka.model.api.visibility
-import dotty.dokka.model.api.modifiers
-import dotty.dokka.model.api.origin
-import dotty.dokka.model.api.Origin
-
+import dotty.dokka.model.api._
 
 import dotty.dokka._
 
@@ -29,25 +25,25 @@ object FilterAttributes:
     base.filter(_._2.nonEmpty)
 
   private def keywords(documentable: Documentable): Map[String, String] = documentable match 
-    case v: WithExtraProperties[_] with WithAbstraction =>
+    case v: Member =>
       Map("keywords" -> v.modifiers.map(_.name).mkString(","))  
     case _ =>
       Map.empty
 
 
   private def visibity(documentable: Documentable): Map[String, String] = documentable match
-    case v: Documentable with WithExtraProperties[_] => 
+    case v: Member => 
       Map("visibility" -> v.visibility.name)
     case _ => 
       Map.empty
 
 
   private def origin(documentable: Documentable): Map[String, String] =  documentable match
-    case v: Documentable with WithExtraProperties[_] => 
+    case v: Member => 
       v.origin match
         case Origin.InheritedFrom(name, _) => Map("inherited" -> name)
-        case Origin.ImplicitlyAddedBy(name: String, _) => Map("implicitly" -> s"by $name")
-        case Origin.ExtensionFrom(name: String, _) => Map("extension" -> s"from $name")
+        case Origin.ImplicitlyAddedBy(name, _) => Map("implicitly" -> s"by $name")
+        case Origin.ExtensionFrom(name, _) => Map("extension" -> s"from $name")
         case _ => Map.empty
     case _ =>
       Map.empty     

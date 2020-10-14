@@ -33,7 +33,7 @@ class ImplicitMembersExtensionTransformer(ctx: DokkaContext) extends Documentabl
         d: T, 
         classlikeMap: Map[DRI, DClass],
         currentConversions: List[ImplicitConversion] = List.empty,
-        currentExtensions: List[(Documentable, ExtensionGroup)] = List.empty,
+       // currentExtensions: List[(Documentable, ExtensionGroup)] = List.empty,
     ): T = d match {
         case m: DModule => m.copy(
             m.getName,
@@ -75,33 +75,34 @@ class ImplicitMembersExtensionTransformer(ctx: DokkaContext) extends Documentabl
                 .filter(_ != null)
                 .fold(List.empty)(_.conversions)
 
-            val companionObjectExtensions = companion
-                .map(c => c -> c.get(ClasslikeExtension))
-                .filter(_(1) != null)
-                .map(
-                    (companion, ext) => companion -> ext.extensions
-                )
-                .fold(List.empty)(
-                    (companion, extensions) => extensions.map(companion -> _)
-                )
+            // val companionObjectExtensions = companion
+            //     .map(c => c -> c.get(ClasslikeExtension))
+            //     .filter(_(1) != null)
+            //     .map(
+            //         (companion, ext) => companion -> ext.extensions
+            //     )
+            //     .fold(List.empty)(
+            //         (companion, extensions) => extensions.map(companion -> _)
+            //     )
 
 
             val implicits = (currentConversions ++ companionObjectConversions)
                 .filter(_.from == c.getDri)
                 .map(conv => conv.conversion -> classlikeMap(conv.to))
-            val extensionMethods = (currentExtensions ++ companionObjectExtensions)
-                .filter(_._2._1.getType.asInstanceOf[org.jetbrains.dokka.model.TypeConstructor].getDri == c.getDri)
-                .map(e => e._1 -> e._2.extensions)
-                .flatMap(e => e._2.map(_ -> e._1))
-                .map( (key,value) => modifyExtensionFunction(key) -> value )
-                .toMap
-            val implicitMembers = ImplicitMembers(
-                implicits.flatMap( (conv, i) => i.getFunctions.asScala.toList.map(_ -> conv)).toMap,
-                implicits.flatMap( (conv, i) => i.get(ClasslikeExtension).inherited.methods.map(_ -> conv)).toMap,
-                implicits.flatMap( (conv, i) => i.getProperties.asScala.filter(_.kind != Kind.Type ).toList.map(_ -> conv)).toMap,
-                implicits.flatMap( (conv, i) => i.get(ClasslikeExtension).inherited.fields.map(_ -> conv)).toMap,
-                extensionMethods
-            )
+
+            // val extensionMethods = (currentExtensions ++ companionObjectExtensions)
+            //     .filter(_._2._1.getType.asInstanceOf[org.jetbrains.dokka.model.TypeConstructor].getDri == c.getDri)
+            //     .map(e => e._1 -> e._2.extensions)
+            //     .flatMap(e => e._2.map(_ -> e._1))
+            //     .map( (key,value) => modifyExtensionFunction(key) -> value )
+            //     .toMap
+            val implicitMembers: ImplicitMembers = ???
+            // ImplicitMembers(
+            //     implicits.flatMap( (conv, i) => i.getFunctions.asScala.toList.map(_ -> conv)).toMap,
+            //     implicits.flatMap( (conv, i) => i.get(ClasslikeExtension).inherited.methods.map(_ -> conv)).toMap,
+            //     implicits.flatMap( (conv, i) => i.getProperties.asScala.filter(_.kind != Kind.Type ).toList.map(_ -> conv)).toMap,
+            //     implicits.flatMap( (conv, i) => i.get(ClasslikeExtension).inherited.fields.map(_ -> conv)).toMap
+            // )
             c.copy(
                 c.getDri,
                 c.getName,
@@ -113,7 +114,7 @@ class ImplicitMembersExtensionTransformer(ctx: DokkaContext) extends Documentabl
                         cl, 
                         classlikeMap,
                         currentConversions ++ c.get(ImplicitConversions).conversions,
-                        currentExtensions ++ c.get(ClasslikeExtension).extensions.map(c -> _)
+                       // currentExtensions ++ c.get(ClasslikeExtension).extensions.map(c -> _)
                     )
                 ).asJava,
                 c.getSources,

@@ -16,7 +16,10 @@ import org.jetbrains.dokka.base.resolvers.anchors._
 import org.jetbrains.dokka.links._
 import org.jetbrains.dokka.model.properties.PropertyContainer
 import org.jetbrains.dokka.model.doc._
+import dotty.dokka.model.api.ExtensionTarget
 
+
+case class ExtensionGroup(val on: ExtensionTarget, val extensions: Seq[Documentable])
 
 case class DocumentableGroup(name: Option[String | Documentable], documenables: Seq[Documentable | ExtensionGroup])    
 
@@ -478,9 +481,9 @@ class ScalaPageContentBuilder(
                 case e: Documentable => documentableElement(e)
                 case e: ExtensionGroup =>
                     DocumentableElementGroup(
-                        Seq("Exentsion group ") ++ buildSignature(e.extendedSymbol).names.reverse,
+                        Seq("Exentsion group ") ++ Seq(e.on.name, " ") ++ e.on.tpe,
                         e.extensions.map(documentableElement),
-                        asParams(e.extendedSymbol.getDri)
+                        asParams(mainDRI)
                     )    
 
             if (children.forall(_.documenables.isEmpty)) this else

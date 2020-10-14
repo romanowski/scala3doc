@@ -18,11 +18,11 @@ import org.jetbrains.dokka.base.resolvers.anchors._
 import org.jetbrains.dokka.links._
 import org.jetbrains.dokka.model.doc._
 import org.jetbrains.dokka.links.DRIKt.getParent
+import dotty.dokka.model.api._
 import dotty.dokka.model.api.Kind
-import dotty.dokka.model.api.kind
-import dotty.dokka.model.api.parents
-import dotty.dokka.model.api.knownChildren
 import dotty.dokka.model.api.Link
+
+
 
 class ScalaPageCreator(
     commentsToContentConverter: CommentsToContentConverter,
@@ -34,28 +34,23 @@ class ScalaPageCreator(
 
     override def pageForModule(m: DModule): ModulePageNode = super.pageForModule(m)
 
-    override def pageForPackage(p: DPackage): PackagePageNode = {
-        val page = super.pageForPackage(p)
+    private def pagesForMembers(p: Member): Seq[PageNode] = /*p.allMembers*/ List.empty[Member].filter(_.origin == Origin.DefinedWithin).map { p => 
+        val page = p match
+            case f: DFunction => pageForFunction(f)
+            case c: DClass => pageForDClass(c)
 
-        val ext = Option(p.get(PackageExtension))
-        val extensionPages = ext.fold(
-                List.empty
-            )(
-                _.extensions.flatMap(_.extensions)
-                .map(pageForFunction(_))
-                .map(page =>
-                    page.modified(
-                        "extension_" + page.getName,
-                        page.getChildren
-                    )
-                )
-            )
-
-        page.modified(
-            page.getName,
-            (page.getChildren.asScala ++ extensionPages).asJava
-        )
+        val name = p.kind match 
+            case Kind.Extension(_) =>  s"extension_${page.getName}"
+            case _ => page.getName
+        
+        page.modified(name, page.getChildren)
     }
+
+    override def pageForPackage(p: DPackage): PackagePageNode = 
+        val originalPage = super.pageForPackage(p)
+        val originalPages: Seq[PageNode] = originalPage.getChildren.asScala.toList
+        val allPage: Seq[PageNode] = originalPages ++ pagesForMembers(p.asInstanceOf[Member]) // TODO!
+        originalPage.modified(p.getName, allPage.asJava) 
 
     override def pageForClasslike(c: DClasslike): ClasslikePageNode = c match {
             case clazz: DClass => pageForDClass(clazz)
@@ -67,16 +62,8 @@ class ScalaPageCreator(
 
         val ext = c.get(ClasslikeExtension)
 
-        val name = if c.kind == Kind.Object && ext.companion.isDefined then c.getName + "$" else c.getName
+        val name = if c.asInstanceOf[Member].kind == Kind.Object && ext.companion.isDefined then c.getName + "$" else c.getName
 
-        val extensionPages = ext.extensions.flatMap(_.extensions)
-            .map(pageForFunction(_))
-            .map(page =>
-                page.modified(
-                    "extension_" + page.getName,
-                    page.getChildren
-                )
-            )
         val enumEntryPages = Option(c.get(EnumExtension)).map(_.enumEntries).collect{
             case c: DClasslike => pageForClasslike(c)
         }
@@ -89,7 +76,7 @@ class ScalaPageCreator(
             (constructors.asScala.map(pageForFunction) ++
             c.getClasslikes.asScala.map(pageForClasslike) ++
             c.getFunctions.asScala.map(pageForFunction) ++
-            enumEntryPages ++ extensionPages).asJava,
+            enumEntryPages ++ pagesForMembers(c.asInstanceOf[Member])).asJava, // TODO
             List.empty.asJava
         )
 
@@ -348,7 +335,7 @@ class ScalaPageCreator(
             }
         }
 
-        def contentForScope(s: Documentable & WithScope) = 
+        def contentForScope(s: Documentable & WithScope & WithExtraProperties[_]) = 
             val (typeDefs, valDefs) = s.getProperties.asScala.toList.partition(_.kind == Kind.Type)
             val classes = s.getClasslikes.asScala.toList
             val inheritedDefinitions = s match {
@@ -360,17 +347,17 @@ class ScalaPageCreator(
                 case p: DPackage => Option(p.get(PackageExtension)).map(_.givens)
                 case _ => None
             }
-            val extensions = s match {
-                case c: DClass => Some(c.get(ClasslikeExtension).extensions)
-                case p: DPackage => Option(p.get(PackageExtension)).map(_.extensions)
-                case _ => None
-            }
-            val implicitMembers = s match {
+
+            def groupExtensions(extensions: Seq[Member]): Seq[ExtensionGroup] = 
+                extensions.groupBy(_.kind).map { case (Kind.Extension(on), members) => ExtensionGroup(on, members.toSeq)}.toSeq
+            
+            val (definedExtensions, inheritedExtensions) = 
+                /*s.allMembers*/ List.empty[Member].filter(_.kind == Kind.Extension).partition(_.origin == Origin.DefinedWithin)
+            
+            val implicitMembers = s match 
                 case c: DClass => Some(c.get(ImplicitMembers))
                 case _ => None
-            }
 
-            val inheritedExtensions = implicitMembers.fold(Map.empty)(_.inheritedExtensions)
             val implicitMethods = implicitMembers.fold(Map.empty)(_.methods)
             val implicitInheritedMethods = implicitMembers.fold(Map.empty)(_.inheritedMethods)
             val implicitFields = implicitMembers.fold(Map.empty)(_.properties)
@@ -395,7 +382,7 @@ class ScalaPageCreator(
                     ),
                     DocumentableGroup(
                         Some("Implicitly Added Methods"), 
-                        implicitMethods.keys.toList ++ inheritedExtensions.keys.toList ++ implicitInheritedMethods.keys.toList
+                        implicitMethods.keys.toList ++ implicitInheritedMethods.keys.toList
                     )
                 )
                 .documentableTab("Value members")(
@@ -419,14 +406,8 @@ class ScalaPageCreator(
                     )
                 )
                 .documentableTab("Extensions")(
-                     DocumentableGroup(
-                        Some("Defined extensions"), // TODO add extension groups!
-                        extensions.getOrElse(List.empty).sortBy(_.extensions.size)
-                    ), 
-                    DocumentableGroup(
-                        Some("Inherited extensions"), 
-                        inheritedDefinitions.fold(List.empty)(_.extensions).sortBy(_.extensions.size),
-                    )
+                    DocumentableGroup(Some("Defined extensions"), groupExtensions(definedExtensions)), 
+                    DocumentableGroup(Some("Inherited extensions"), groupExtensions(inheritedExtensions))
                 )
     
 

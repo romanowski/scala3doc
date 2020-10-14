@@ -51,7 +51,7 @@ enum Modifier(val name: String, val prefix: Boolean):
   case Opaque extends Modifier("opaque", true)
   case Open extends Modifier("open", true)
  
-case class ExtensionGroup(on: String, tpe: Signature)  
+case class ExtensionTarget(name: String, tpe: Signature)  
 
 enum Kind(val name: String){
   case Class extends Kind("class")
@@ -60,7 +60,7 @@ enum Kind(val name: String){
   case Enum extends Kind("enum")
   case EnumCase extends Kind("case")
   case Def extends Kind("def")
-  case Extension(in: ExtensionGroup) extends Kind("def")
+  case Extension(in: ExtensionTarget) extends Kind("def")
   case Constructor extends Kind("def")
   case Var extends Kind("var")
   case Val extends Kind("val")
@@ -89,18 +89,34 @@ case class Link(name: String, dri: DRI)
 type Signature = Seq[String | Link]
 case class LinkToType(signature: Signature, dri: DRI)
 
-extension (member: Documentable with WithExtraProperties[_]):
-  def visibility: Visibility = MemberExtension.getFrom(member).fold(Visibility.Unrestricted)(_.visibilty)
-  def signature: Signature = MemberExtension.getFrom(member).fold(Nil)(_.signature)
-  def modifiers: Seq[dotty.dokka.model.api.Modifier] = MemberExtension.getFrom(member).fold(Nil)(_.modifiers)
-  def kind: Kind = MemberExtension.getFrom(member).fold(Kind.Uknown)(_.kind)
-  def origin: Origin =  MemberExtension.getFrom(member).fold(Origin.DefinedWithin)(_.origin)
-  def annotations: List[Annotation] = MemberExtension.getFrom(member).fold(Nil)(_.annotations)
+type Member = Documentable with ExtraProperty[_]
+
+// TODO uncomment to get error in 
+// val test = {
+//   val dp: Member = ???.asInstanceOf[DPackage]
+//   val dp1: Member = ???.asInstanceOf[DCLass]
+//   val dp2: Member = ???.asInstanceOf[DFunction]
+//   val dp3: Member = ???.asInstanceOf[DProperty]
+//   123
+// }
+
+
+def extractMember(d: Documentable) = d.asInstanceOf[Member]
+
+extension  (member: Documentable): // Member here causes strange compilation problems
+  def visibility: Visibility = MemberExtension.getFrom(extractMember(member)).fold(Visibility.Unrestricted)(_.visibilty)
+  def signature: Signature = MemberExtension.getFrom(extractMember(member)).fold(Nil)(_.signature)
+  def modifiers: Seq[dotty.dokka.model.api.Modifier] = MemberExtension.getFrom(extractMember(member)).fold(Nil)(_.modifiers)
+  def kind: Kind = MemberExtension.getFrom(extractMember(member)).fold(Kind.Uknown)(_.kind)
+  def origin: Origin =  MemberExtension.getFrom(extractMember(member)).fold(Origin.DefinedWithin)(_.origin)
+  def annotations: List[Annotation] = MemberExtension.getFrom(extractMember(member)).fold(Nil)(_.annotations)
+ 
+extension [T] (member: Documentable)
   def name = member.getName
   def dri = member.getDri 
 
 // TODO rename parent and knownChildren
 extension (classLike: DClass):
-  def allMembers: Seq[Documentable] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.members)
+  def allMembers: Seq[Member] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.members)
   def parents: Seq[LinkToType] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.parents)
   def knownChildren: Seq[Link] = CompositeMemberExtension.getFrom(classLike).fold(Nil)(_.knownChildren)

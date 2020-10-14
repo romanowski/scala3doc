@@ -37,32 +37,24 @@ enum IsEnumEntry extends ExtraProperty[Documentable]:
 
 object IsEnumEntry extends BaseKey[Documentable, IsEnumEntry]
 
-
-
 case class EnumExtension(val enumEntries: Seq[Documentable]) extends ExtraProperty[DClass]:
   override def getKey = EnumExtension
 
 object EnumExtension extends BaseKey[DClass, EnumExtension]
-
-
-case class ExtensionGroup(val extendedSymbol: DParameter, val extensions: List[DFunction])
-
 
 case class InheritedDefinitions(
   classlikes: List[DClasslike],
   types: List[DProperty],
   methods: List[DFunction],
   fields: List[DProperty],
-  extensions: List[ExtensionGroup],
   givens: List[Documentable]
 )
 
 case class ClasslikeExtension(
-  constructor: Option[DFunction], 
-  companion: Option[DRI], 
-  extensions: List[ExtensionGroup],
-  inherited: InheritedDefinitions,
-  givens: List[Documentable]
+  constructor: Option[DFunction], // will be replaced by signature
+  companion: Option[DRI], // moved to kind?
+  inherited: InheritedDefinitions, // handled by kind in member
+  givens: List[Documentable]  // handled by kind in member
 ) extends ExtraProperty[DClasslike]:
   override def getKey = ClasslikeExtension
 
@@ -70,20 +62,17 @@ object ClasslikeExtension extends BaseKey[DClasslike, ClasslikeExtension]
 
 
 case class PackageExtension(
-  extensions: List[ExtensionGroup],
   givens: List[Documentable]
 ) extends ExtraProperty[DPackage]:
   override def getKey = PackageExtension
 
-object PackageExtension extends BaseKey[DPackage, PackageExtension]:
-  def apply(ce: ClasslikeExtension): PackageExtension = PackageExtension(ce.extensions, ce.givens)
+object PackageExtension extends BaseKey[DPackage, PackageExtension]
 
 case class ImplicitMembers(
   methods: Map[DFunction, Documentable] = Map.empty,
   inheritedMethods: Map[DFunction, Documentable] = Map.empty,
   properties: Map[DProperty, Documentable] = Map.empty,
-  inheritedProperties: Map[DProperty, Documentable] = Map.empty,
-  inheritedExtensions: Map[DFunction, Documentable] = Map.empty
+  inheritedProperties: Map[DProperty, Documentable] = Map.empty
 ) extends ExtraProperty[DClasslike]:
   override def getKey = ImplicitMembers
 

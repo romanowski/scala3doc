@@ -16,6 +16,7 @@ import kotlinx.html.FlowContent
 import kotlinx.html.stream.StreamKt
 import kotlinx.html.Gen_consumer_tagsKt
 import org.jetbrains.dokka.links.DRI
+import dotty.dokka.model.api.Link
 
 class ScalaHtmlRenderer(ctx: DokkaContext) extends SiteRenderer(ctx) {
 
@@ -67,9 +68,10 @@ class ScalaHtmlRenderer(ctx: DokkaContext) extends SiteRenderer(ctx) {
             case null => ""
             case link => link
 
-        def renderElement(e: String | (String, DRI)) = e match
+        def renderElement(e: String | (String, DRI) | Link) = e match
             case (name, dri) =>  a(href := link(dri))(name)
             case name: String => raw(name)
+            case Link(name, dri) => a(href := link(dri))(name)
 
         def buildDocumentable(element: DocumentableElement) = 
             def topLevelAttr = Seq(clazz := "documentableElement") ++ element.attributes.map{ case (n, v) => attr(s"data-f-$n") := v }
