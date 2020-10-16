@@ -24,14 +24,22 @@ import org.jetbrains.dokka.base.resolvers.local.LocationProvider
 
 
 class SignatureRenderer(pageContext: ContentPage, sourceSetRestriciton: JSet[DisplaySourceSet], locationProvider: LocationProvider):
-    def link(dri: DRI): String = locationProvider.resolve(dri, sourceSetRestriciton, pageContext) match
-        case null => ""
-        case link => link
+    def link(dri: DRI): Option[String] = Option(locationProvider.resolve(dri, sourceSetRestriciton, pageContext))
 
-    def renderElement(e: String | (String, DRI) | Link) = e match
-        case (name, dri) =>  a(href := link(dri))(name)
+    def renderLink(name: String, dri: DRI, modifiers: scalatags.Text.all.Modifier*) =
+        link(dri) match
+            case Some(link) => a(href := link, modifiers)(name)
+            case None if modifiers.isEmpty => raw(name)
+            case _ => span(modifiers)(name)
+            
+
+    def renderElementWith(e: String | (String, DRI) | Link, modifiers: scalatags.Text.all.Modifier*) = e match
+        case (name, dri) => renderLink(name, dri, modifiers)
         case name: String => raw(name)
-        case Link(name, dri) => a(href := link(dri))(name)
+        case Link(name, dri) => renderLink(name, dri, modifiers)
+            
+
+    def renderElement(e: String | (String, DRI) | Link) = renderElementWith(e)
 
 class ScalaHtmlRenderer(ctx: DokkaContext) extends SiteRenderer(ctx) {
 
@@ -89,18 +97,21 @@ class ScalaHtmlRenderer(ctx: DokkaContext) extends SiteRenderer(ctx) {
             val otherModifiers = element.modifiers.dropRight(1)
 
             div(topLevelAttr:_*)(
-                div(clazz := "annotations")(element.annotations.map(renderElement)),
+                div(clazz := "annotations monospace")(element.annotations.map(renderElement)),
                 div(
-                    a(href:=link(element.params.dri), clazz := "documentableAnchor")(anchor),
+                    a(href:=link(element.params.dri).getOrElse("#"), clazz := "documentableAnchor")(anchor),
                     span(clazz := "modifiers monospace")(
                         span(clazz := "other-modifiers")(otherModifiers.map(renderElement)),
                         span(clazz := "kind")(kind.map(renderElement)),
                     ),
-                    a(clazz := "documentableName monospace", href := link(element.params.dri) )(element.name),
+                    renderLink(element.name, element.params.dri, clazz := "documentableName monospace"),
                     span(clazz := "signature monospace")(element.signature.map(renderElement)),
-                    div(clazz := "documentableBrief")(element.brief.map(render)),
+                    div(
+                        div(clazz := "originInfo")(element.originInfo.map(renderElement)),
+                        div(clazz := "documentableBrief")(element.brief.map(render)),
+                    )
                 ),
-                div(clazz := "originInfo")(element.originInfo.map(renderElement)),
+                
             )    
 
         div(clazz := "documentableList")(

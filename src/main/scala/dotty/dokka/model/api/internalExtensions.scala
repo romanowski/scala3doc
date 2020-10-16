@@ -14,6 +14,8 @@ import org.jetbrains.dokka.model.Bound
 import org.jetbrains.dokka.model.TypeConstructor
 import org.jetbrains.dokka.model.TypeParameter
 import org.jetbrains.dokka.model.UnresolvedBound
+import org.jetbrains.dokka.model.DPackage
+import org.jetbrains.dokka.model.DModule
 
 import collection.JavaConverters._
 import org.jetbrains.dokka.links._
@@ -38,6 +40,7 @@ object MemberExtension extends BaseKey[Documentable, MemberExtension]:
 
 case class CompositeMemberExtension(
   members : Seq[Member] = Nil,
+  directParents: Seq[Signature] = Nil,
   parents: Seq[LinkToType] = Nil,
   knownChildren: Seq[LinkToType] = Nil
 ) extends ExtraProperty[Documentable]:
@@ -84,8 +87,9 @@ extension (member: Member):
   def withKnownChildren(knownChildren: Seq[LinkToType]): Member =
     val original = member.compisteMemberExt.getOrElse(CompositeMemberExtension())
     val newExt = original.copy(knownChildren = knownChildren)
-    putInCompositeMember(newExt)  
+    putInCompositeMember(newExt)
     
+  def updateRecusivly(op: Member => Member) = op(member).withMembers(member.allMembers.map(op))  
 
 extension (bound: Bound):
   def asSignature: Signature = bound match 
@@ -95,3 +99,17 @@ extension (bound: Bound):
         case link: TypeParameter =>
           Link(link.getName, link.getDri)
       }
+
+extension (m: DModule):
+  def updatePackanges(op: Seq[DPackage] => Seq[DPackage]): DModule = 
+    m.copy(
+            m.getName,
+            op(m.getPackages.asScala.toSeq).asJava,
+            m.getDocumentation,
+            m.getExpectPresentInSet,
+            m.getSourceSets,
+            m.getExtra
+        )
+
+  def updateMembers(op: Member => Member): DModule = updatePackanges(_.map(p => p.updateRecusivly(op).asInstanceOf[DPackage]))
+ 

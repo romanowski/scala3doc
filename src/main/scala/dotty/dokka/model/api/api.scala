@@ -54,12 +54,13 @@ enum Modifier(val name: String, val prefix: Boolean):
 case class ExtensionTarget(name: String, signature: Signature, dri: DRI)
 case class ImplicitConversion(from: DRI, to: DRI)
 trait ImplicitConversionProvider { def conversion: Option[ImplicitConversion] }
+trait Classlike
 
 enum Kind(val name: String){
-  case Class extends Kind("class")
-  case Object extends Kind("object")
-  case Trait extends Kind("trait")
-  case Enum extends Kind("enum")
+  case Class extends Kind("class") with Classlike
+  case Object extends Kind("object") with Classlike
+  case Trait extends Kind("trait") with Classlike
+  case Enum extends Kind("enum") with Classlike
   case EnumCase extends Kind("case")
   case Def extends Kind("def")
   case Extension(on: ExtensionTarget) extends Kind("def")
@@ -130,6 +131,7 @@ extension[T] (member: Member):
   // TODO rename parent and knownChildren
   def allMembers: Seq[Member] = compisteMemberExt.fold(Nil)(_.members)
   def parents: Seq[LinkToType] = compisteMemberExt.fold(Nil)(_.parents)
+  def directParents: Seq[Signature] = compisteMemberExt.fold(Nil)(_.directParents)
   def knownChildren: Seq[LinkToType] = compisteMemberExt.fold(Nil)(_.knownChildren)
 
   def membersBy(op: Member => Boolean): (Seq[Member], Seq[Member]) = allMembers.filter(op).partition(_.origin == Origin.DefinedWithin)
